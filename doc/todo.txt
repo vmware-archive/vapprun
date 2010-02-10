@@ -1,0 +1,25 @@
+
+TODO:
+2. Update README with new command syntax
+3. Wite a User Guide
+4. Complete labs frontpage
+
+NICE TO HAVE:
+1. Property validation
+3. Deploy/export commands that integrates with OVF Tool
+5. Create shorthands for commands, e.g. 'ic' and 'ac' for the above
+6. Refactor logging/output print statements to use a common library
+8. Switch from XML to YAML config files? (they do look nicer)
+9. OVF XML extensibility module
+    . Store unparsed XML as files
+    . Plug-in interface to consume them
+11. Create a better network model, where an IP pool maps to named networks, and named networks maps to vmics. Currently, vapprun really only support a single NIC.
+15. Add description to properties
+
+FIXED:
+4. Rename commands 'deploy'->'instance-config' and 'config'->'app-config'
+7. Support 'transport' setting, so it can be controlled whether iso or guestEnv transport should be used
+10. Add a version number to vapprun.cfg, so OVF Tool can validate the version
+14. Unmount ovfenv ISO on shutdown
+12. default values for properties are not handled correctly (e.g., a property with value="small", still get overriden as "CHANGE-ME)
+13. Should support userConfigurable flag for properties

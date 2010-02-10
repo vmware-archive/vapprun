@@ -1,0 +1,535 @@
+		<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/transitional.dtd">
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>VMware vApprun 1.0 User Guide</title>
+  <link rel="stylesheet" type="text/css" href="userguide.css">
+</head>
+
+<body>
+<div id="topnav">
+  <table summary="">
+    <tr>
+      <td id="headerImage">
+        <a href="/"><img src="vmware.png" height="50%" width="50%"  alt="VMware Logo" style="border:0" /></a>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div id="linkList">
+  <ul>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">User Guide</li>
+    <li><a href="#intro">Introduction</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#concepts">Concepts</a></li>
+    <li><a href="#workspace">Workspace</a></li>
+    <li><a href="#createandrun">vApps and VMs</a></li>
+    <li><a href="#ovfprop">OVF Properties</a></li>
+    <li><a href="#netconfig">Network Configuration</a></li>
+    <li><a href="#example">Example</a></li>
+    <li><a href="#learnmore">Learn More</a></li>    
+    <li class="blank">&nbsp;</li>   
+  </ul>
+</div>
+
+<div id="content">
+<h1>vApprun 1.0 User Guide</h1>
+
+<a name="intro"/></a>
+<h2>Introduction</h2>
+
+<p>With vSphere 4, we introduced a set of new features for managing and configuring virtual appliances, namely vApps, OVF properties, and the OVF environment. A vApp is a container for a distributed, multi-VM software solution. It has power-on operations just as a virtual machine, and can be imported or exported as an OVF package. The OVF properties and OVF environment provides a flexible mechanism for parameterizing guest software inside a VM upon deployment. Using the OVF properties, it is possible to both configure OS level properties, such as IP settings, and application level parameters, such as IP addresses of external servers.</p>
+
+<p>Until now, these features have been exclusive to vSphere 4, but with VMware vApprun, these features become available to both Workstation and Fusion users. The vApprun tool implements the same vApp/OVF feature set as the vSphere 4 release. Thus, Workstation/Fusion can be used as a development environment for advanced OVF packages, and it can be used to evaluate and test OVF packages on your desktops and laptops.</p>
+
+<p>Along with the vApprun tool, we will shortly release a technical preview of VMware OVF&nbsp;Tool&nbsp;2.0. One of the new features is support for vApprun workspaces as both a source and target. Thus, OVF packages can be deployed and run directly on Workstation and Fusion, even when they use advanced features such as OVF properties or contain multiple VMs. Furthermore, the vApps and VMs that are created using vApprun can be exported as OVF packages, deployed to vSphere installations, or even into vCloud accounts.</p>
+
+<a name="features"/></a>
+<h2>Features</h2>
+
+<ul>
+<li>vApps that contain multiple VMs and nested vApps.</il>
+<li>For a vApp, the start/stop sequence of the child entities can be configured.</il>
+<li>Start/stop/shutdown of vApps.</il>
+<li>Create OVF properties and access the OVF environment from guest software.</il>
+<li>Supports ISO and guestInfo OVF environment transports.</il>
+<li>Supports fixed, transient, and DHCP IP allocation modes and IP pools.</il>
+<li>Import OVF packages and run it with vApprun (using OVF Tool 2.0).</il>
+<li>Export vApps and VMs created with vApprun to OVF packages (using OVF Tool 2.0).</il>
+<li>Command-line, workspace-oriented user interaction.</il>
+<li>Cross-platform - available for Windows/Mac/Linux.</il>
+<li>VMware vSphere 4 compatible.</il>
+</ul>
+
+<a name="concepts"/></a>
+<h2>Concepts</h2>
+
+<p>The vApprun tool is centered around three main objects: Workspaces, vApps, and virtual machines (VMs). A workspace is a container for vApps and VMs. The vApp and VM objects can be configured with OVF properties, as well as be linked to parent vApps. Both VMs and vApps can have parent links, so it is possible to create deeply nested vApps. In addition to being a container of the VM and vApp objects, a workspace also contains an IP pool. The following figure illustrates the relationship between the objects and what kinds of configuration they contain (in this particular figure the workspace contains one vApp and two VMs):</p>
+
+<center>
+<img src="workspace.png" alt="vApprun Workspace" align="middle" />
+</center>
+
+<p>A link is not just a link to a parent. Each link contains configuration, such as start-up order, start delay (i.e., how long to wait until the next in the sequence should be started), and so forth. This information is used when starting or stopping a vApp. The power-down sequence is the reverse of the power-up sequence.</p>
+
+<p>OVF properties are used to parameterize VM and vApps. A vApp/VM can be configured with a set of property definitions. Each property definition consists of a key, a type, and a default value. A property definition works much like a shell variable (e.g., such as $MY_CONFIG) in a normal UNIX shell. For each deployment of the vApp/VM, the set of property definitions remain fixed, but the value of the properties are configured differently. Often, OVF properties are used to pass deployment-specific information into the guest software, such as IP addresses, netmasks, gateways, dns servers, IP or DNS names of external servers, admin emails, and performance tuning settings.</p>
+
+<p>The IP Pool object in the workspace contains common configuration for the deployment environment as well as a pool of IP addresses that can be assigned to the VMs in the workspace. The OVF property syntax allow OVF definitions to automatically be assigned values from the IP Pool. For example, properties that automatically get the value of the DNS servers or automatically get assigned an IP address. This can greatly simplify deployment since common configuration only has to be provided once (per workspace).</p>
+
+<p>When a VM is powered on, the OVF properties are used to populate an OVF environment for the VM. The OVF environment is a standardized XML document that contains the key/value pair of each property that is visible to the VM. By definition, this is all properties that are defined on the VM and on its immediate parent, if any.  The OVF environment is made available to the guest software in one of two ways: i) As a file on an ISO image that is mounted into an available CD-ROM drive, or 2) available through VMware Tools in the guestInfo.ovfEnv variable. The method used to transport the OVF environment is configurable per VM. With OVF properties and the OVF environment, a VM or vApp can be parameterized. The deployment-time configuration (the values for each property) is made available to the guest software. The author of the VM/vApp is responsible for installing a script or other software that reacts appropriately on the configured values.
+</p>
+
+<p>Example OVF environment:</p>
+<pre class="code">
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
+                oe:id="MyVM"&gt;   
+   &lt;PlatformSection&gt;
+      &lt;Kind&gt;vapprun&lt;/Kind&gt;
+      &lt;Version&gt;1.0&lt;/Version&gt;
+      &lt;Vendor&gt;VMware, Inc.&lt;/Vendor&gt;
+      &lt;Locale&gt;en_US&lt;/Locale&gt;
+  &lt;/PlatformSection&gt;
+  &lt;PropertySection&gt;
+      &lt;Property oe:key="DNS_servers"     oe:value="10.20.1.20,10.20.1.22"/&gt;
+      &lt;Property oe:key="Gateway_Address" oe:value="10.20.60.1"/&gt;
+      &lt;Property oe:key="IP_Address"      oe:value="10.20.60.230"/&gt;
+      &lt;Property oe:key="Network_Mask"    oe:value="255.255.255.0"/&gt;
+  &lt;/PropertySection&gt;
+&lt;/Environment&gt;
+</pre>
+
+<a name="workspace"/></a>
+<h2>Setting up a Workspace</h2>
+
+<p>To use vApprun, you need to set up a workspace. A workspace is a directory where vApprun stores the configuration of the workspace, including the VMs and vApp entities that is created in the workspace. You can create multiple workspaces. Each workspace is independent and self-contained.</p>
+
+<p>To create a workspace, create a directory and run the <tt>init</tt> command:</p>
+
+<pre class="code">
+>mkdir myws
+>cd myws
+>vapprun init
+</pre>
+
+<p>Under the covers, the vapprun command has created a <tt>vapprun.cfg</tt> file in the directory. The presence of this file marks the directory as a vApprun workspace, as well as stores the IP pool configuration.</p>
+
+<p>All vApprun commands (except <tt>init</tt> and <tt>help</tt>) must be executed in the context of a workspace. The current workspace is found relative to the current directory. Thus, you must be in the workspace directory or in a subdirectory of the workspace directory when executing a <tt>vapprun</tt> command. The general form of the <tt>vapprun</tt> tool is:</p>
+
+<pre class="code">
+>vapprun 
+Usage: vapprun &lt;command&gt; [options] [&lt;target&gt; [&lt;arguments&gt;]]
+Type 'vapprun help' for help
+</pre>
+
+<p>Use the <tt>vapprun help</tt> command to see a list of all the commands, and <tt>vapprun help &lt;command&gt;</tt> to get information about a specific command.</p>
+
+<p>To see the configuration of the workspace use the <tt>workspace</tt> command:</p>
+
+<pre class="code">
+>vapprun workspace
+IP Pool settings:
+  dns = 
+  domainName = example.com
+  gateway = 192.168.0.1
+  hostPrefix = vapprun-
+  httpProxy = 
+  netmask = 255.255.255.0
+  range = 192.168.0.200#8
+  searchPath = 
+Free IP addreses
+  192.168.0.200, 192.168.0.201, 192.168.0.202, 192.168.0.203, 192.168.0.204, 192.168.0.205, 192.168.0.206, 192.168.0.207
+</pre>
+
+<p>The configuration of the workspace is changed by supplying arguments to the <ttworkspace></tt> command:</p>
+<pre class="code">
+>vapprun workspace dns=vmware.com range=10.20.63.100#4
+IP Pool settings:
+  dns = vmware.com
+  domainName = example.com
+  gateway = 192.168.0.1
+  hostPrefix = vapprun-
+  httpProxy = 
+  netmask = 255.255.255.0
+  range = 10.20.63.100#4
+  searchPath = 
+Free IP addreses
+  10.20.63.100, 10.20.63.101, 10.20.63.102, 10.20.63.103
+</pre>
+
+<p class="callout">Note: On Windows, you often have to quote the arguments (<tt>vapprun workspace "dns=vmware.com" "range=10.20.63.100#4")</tt>.</p>
+
+<p>The <tt>list</tt> command is used to see the workspace inventory:</p>
+<pre class="code">
+>vapprun list
+Empty workspace
+</pre>
+<p>As expected, the workspace is empty. 
+
+<p>The last workspace related command is the <tt>fsck</tt> command. This checks the integrity of the workspace. Hopefully, you will never have to use it, but if vApprun is acting up, it might be helpful to check if some stray files needs to get cleaned up.</p>
+
+<pre class="code">
+>vapprun fsck
+No stray files in workspace
+</pre>
+<p>Run this with the <tt>-d</tt> option, and it will delete the stray files it finds.</p>
+
+<a name="createandrun"/></a>
+<h2>Creating and running vApps and VMs</h2>
+
+<p>There are two commands for creating virtual machines in a vApprun workspace: <tt>create-vm</tt> and <tt>link-vm</tt>. They both create a new VM entity inside the vApprun workspace. The difference is that the <tt>create-vm</tt> command creates a new blank VM with a single disk that is stored inside the current workspace, where as the <tt>link-vm</tt></tt> links to an existing <tt>.vmx</tt> file that is stored outside the workspace. The following shows examples of these two commands:</p>
+
+<pre class="code">
+>vapprun create-vm myVm disk=5
+Creating disk '~/myws/MyVM/vmx/disk.vmdk'
+Virtual disk creation successful.
+Created VM entity MyVM successfully
+
+>vapprun link-vm MyLinkedVM vmx=~/VMs/LampVM.vmx
+Created VM entity MyLinkedVM successfully
+</pre>
+
+<p>Functionally, there is no differences between a VM entity created with the two commands, except when an entity is deleted. If the VM is created with the <tt>create-vm</tt>, the VM files will be deleted too. To delete a vApp or VM use the <tt>delete</tt> command.</tt></p>
+
+<p>To create a vApp, use the <tt>create-vapp</tt> command:</p>
+
+<pre class="code">
+>vapprun create-vapp MyVApp
+</pre>
+
+<p>At this point, we have ended up with a workspace with 3 entities: MyVM, MyLinkedVM, and MyVApp.</p>
+
+<pre class="code">
+>vapprun list
+Name                           Type   State         IP              AppUrl
+--------------------------------------------------------------------------
+MyLinkedVM                     VM    Powered Off                    
+MyVApp                         vApp  Powered Off                    
+MyVM                           VM    Powered Off         
+</pre>
+
+<p>A vApp is a container that can contain other vApps and virtual machines. The <tt>edit</tt> command is used to change the configuration of a vApp or VM entity. The <tt>parent</tt> setting is used to configure the vApp hierarchy. In the following example, we create another vApp (AnotherVApp) and configure a simple hierarchy:</p>
+
+<pre class="code">
+>vapprun create-vapp AnotherVApp
+>vapprun edit        MyVM        parent=MyVApp
+>vapprun edit        MyLinkedVM  parent=AnotherVApp
+>vapprun edit        AnotherVApp parent=MyVApp
+</pre>
+
+<p>The end result can be seen with the <tt>list</tt> command:</p>
+
+<pre class="code">
+Name                           Type   State         IP              AppUrl
+--------------------------------------------------------------------------
+MyVApp                         vApp  Powered Off                    
+  AnotherVApp                  vApp  Powered Off                    
+    MyLinkedVM                 VM    Powered Off                    
+  MyVM                         VM    Powered Off   
+</pre>
+
+<p class="callout">Hint: Use the -q option with list command (<tt>vapprun list -q</tt>) to make it run faster by not showing the power-state and the IP addresses.</p>
+
+<p>Once the desired vApp hierarchy is set up, we need to configure the individual entities. This includes OVF properties, IP allocation policy, start-up order, application URLs, and so forth. We will cover OVF properties and IP allocation policies in the following sections. To list the current configuration use the <tt>list</tt> command with the name of the entity:</p>
+
+<pre class="code">
+>vapprun list MyVApp
+Name.......: MyVApp
+Type.......: vApp
+IP Policy..: fixed
+
+Children: 
+  Name             Order   StartWait   WaitForTools   StopWait
+  ------------------------------------------------------------
+  AnotherVApp        30       30          True           30
+  MyVM               30       30          True           30
+</pre>
+<p>The <tt>Order</tt>, <tt>StartWait</tt>, <tt>WaitForTools</tt>, and <tt>StopWait</tt> are all settings on the children and the <tt>edit</tt> command is used to set them:</p>
+
+<pre class="code">
+>vapprun edit MyVM startOrder=10 startWait=10 waitForTools=True stopWait=10
+</pre>
+
+<p>A vApp is started by powering on the children in accending order. If a child is a vApp, then the vApp is started recursively. The <tt>start</tt> command continues to the next VM once the number of seconds specified in startWait has elapsed. If waitForTools is set to true, it moves to the next child in the power-on sequence either when a VMware Tools heartbeat is received or when the number of seconds in startWait has elapsed (whichever comes first). The power-off sequence is the reverse of the start sequence and the stopWait is used instead.</p>
+
+<p>The three commands that are used to start and stop VMs and vApps are: <tt>start</tt>, <tt>stop</tt>, and <tt>shutdown</tt>. The differences between the stop and shutdown is that shutdown executes a hard power-off, whereas stop executes a soft power-off (guest initiated).</p>
+
+<p>By default, all virtual machines are started headless. The <tt>-gui</tt> option can be used with the <tt>start</tt> command to show the VM console when a VM/vApp starts.</p>
+
+<pre class="code">
+>vapprun start -gui MyVApp
+Starting MyVApp
+ Starting MyVM
+ Waiting for 10 secs...
+ Starting AnotherVApp
+  Starting MyLinkedVM
+  Waiting for 30 secs...
+  Waiting for 20 secs...
+  Waiting for 10 secs...
+  
+>vapprun stop MyVApp/
+Stopping MyVApp
+ Stopping AnotherVApp
+  Stopping MyLinkedVM
+ Stopping MyVM
+</pre>
+
+<p class="callout">Note: When using the -gui option on Mac OS X, it is necessary to manually close the opened console windows and clean out the VM entries from the Fusion's Virtual Machine Library. Right click on them, select delete, and make sure to select <em>keep files</em>.</p>
+
+<a name="ovfprop"/></a>
+<h2>OVF Properties and OVF Environment</h2>
+
+<p>Virtual machines are very practical containers for encasulating an application stack. Once the virtual machine is configured with the desired set of software, it can be copied, shared, and deployed many times. This approach is often used to simplify and robustify software deployments inside IT organizations, or used to distribute software to end-users (virtual appliance model). However, one issue with the above approach is that each deployment is not exactly the same. The software inside the VM needs to be customized to the particular deployment scenario. For example, configuration settings such as IP addresses of external systems, security settings, administrator email are different for each deployment.  Thus, what we need is a way to create a <em>parameterized</em> virtual machine or vApp, where the deployer can customize parts of the application to suit the particular deployment scenario.</p>
+
+<p></p>OVF Properties and the OVF Environment are exactly designed for this. They support what is commonly known as self-customization. Self-customization is a flexible, open-ended scheme for getting the bits inside a virtual machine customized for a particular deployment scenario.</p>
+
+The scheme works as follows:
+<ul>
+<li>VM/vApp Author:</li>
+  <ol>
+   <li>Defines a set of OVF properties that covers the set of parameters that need to be customized at deployment time.</li>
+   <li>Installs a script in the guest, that upon boot of the virtual machine(s), will read the values provided for each OVF property and customize the software accordingly.</li>
+   </ol>
+<li>VM/VApp Deployer:</li>
+   <ol>
+     <li>The deployment tool (e.g., vApprun, vSphere, OVF Tool) will prompt for values for each of the declared OVF properties.</li>
+     <li>Power-on the VM or vApp.</li>
+   </ol>
+</ul>
+<p>
+
+<p>There are two types of property values, ones that must be configured by the user and ones that are configured automatically by the deployment environment (such as VirtualCenter or vApprun). The former are called static properties, and the latter are called  automatic properties. Most of the automatic properties are centered around passing IP-level configuration into the VMs, such as IP addresses, netmask, and gateway information. We will discuss them more in the next section.</p>
+
+	<p>The vApp/VM author uses the <tt>def-property</tt> command to define properties on a VM or vApp, and the deployer uses the <tt>set-property</tt> command to specify the deployment time values for OVF properties:</p>
+
+<pre class="code">
+>vapprun def-property MyVApp key=adminEmail type=string
+>vapprun set-property MyVApp adminEmail=admin@example.com
+>vapprun list MyVApp
+Name.......: MyVApp
+Type.......: vApp
+IP Policy..: fixed
+
+Property Definitions:
+  Key                       Type            Value                      UserConfig
+  -------------------------------------------------------------------------------
+  adminEmail                string                                     True
+
+Property Settings:
+  Key                       Value
+  ------------------------------------------------
+  adminEmail                admin@example.com
+</pre>
+
+<p class="callout">Note: property type validation is not implemented in vApprun 1.0. You can use any value for type you like(except for <tt>expression</tt> and <tt>ip:Network</tt> which we will cover it the next section). It is recommended to use string for now, as it is a valid type.</p>
+
+<p>A virtual machine will receive the configured values for all OVF properties in an OVF environment. The OVF environment contains the key/value pairs of all properties that are defined on the virtual machine entity itself, as well as the key/value pairs of all properties defined on the immediate parent vApp, if any. In the above example, the OVF environment will look like:</p>
+
+<pre class="code">
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
+                oe:id="MyVM"&gt;   
+   &lt;PlatformSection&gt;
+      &lt;Kind&gt;vapprun&lt;/Kind&gt;
+      &lt;Version&gt;1.0&lt;/Version&gt;
+      &lt;Vendor&gt;VMware, Inc.&lt;/Vendor&gt;
+      &lt;Locale&gt;en_US&lt;/Locale&gt;
+   &lt;/PlatformSection&gt;
+   &lt;PropertySection&gt;
+      &lt;Property oe:key="adminEmail" oe:value="admin@example.com"/&gt;
+   &lt;/PropertySection&gt;
+&lt;/Environment&gt;
+</pre>
+
+<p class="callout">For further details on the OVF environment, see the Open Virtualization Format 1.0 specification. There is link to this in the <a href="#learnmore">Learn More</a> section.</p>
+
+<p>Two methods exist for transferring the OVF environment into the virtual machine, so it can be read by the guest software. These methods are called the <tt>iso</tt> and <tt>com.vmware.guestInfo</tt> transports. The transport option is set using the <tt>edit</tt> command and is only applicable to a VM entity:</p>
+
+<pre class="code">
+  vapprun edit MyVM transport=iso
+</pre>
+
+<p>Multiple transports can be specified, separated by spaces. When the iso transport is used, vApprun will generate an ISO image with the OVF environment stored in a file called <tt>ovf-env.xml</tt> in the root directory. This ISO image is mounted in the first available CD-ROM drive that is found. When the guestinfo transport is used, the value of the OVF environment can be retrieved using a VMware Tools command (running in the guest):</p>
+<pre class="code">
+  vmware-guestd --cmd 'info-get guestinfo.ovfEnv'      # Linux Guest
+
+  VMwareService.exe --cmd "info-get guestinfo.ovfEnv"  # Windows Guest
+</pre>
+<p>The above commands are only available if VMware Tools are installed in the guest. For more information about the VMware Tools commands, see the <a href="http://www.vmware.com/support/developer/scripting-API/doc/Scripting_API.pdf">VMware Scripting API User's Manual</a>.</p>
+
+<p>For an example of a guest script, see the following blog entry: <a href="http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html">Self-Configuration and the OVF Environment</a>.</p>
+
+<a name="netconfig"></a>
+<h2>Network Configuration</h2>
+
+<p>When installing a virtual appliance, it needs to be customized for the particular deployment environment. Ideally, you would like a nice, simple web/gui based user interface to specify your desired IP configuration (DHCP, no DHCP, IP address netmasks, gateways, etc.). However, instead most virtual appliances force you to use a BIOS-style text interface in the VM console. This is not because the appliance vendors are particular ignorant about a good user experience (in fact, most care deeply about this), but because they are running into a catch-22 problem. To enter this information using a nice web-based interface you need the IP information! To solve this, a bit of help from the deployment infrastructure is needed. In this section, we will see how we can use OVF properties and the OVF environment to:</p>
+<ul>
+<li>Eliminate the need to go to the VM console.</li>
+<li>Provide the ability to create appliances that work in both DHCP and non-DHCP networking environments.</li>
+<li>Enable automatic IP configuration of multi-tiered software solutions. In particular, allowing the different tiers to discover each others IP addresses. (in both DHCP and non-DHCP environments.)</li>
+<li>Reduce manual configuration by automatically propagating common IP configuration to the appliances.</li>
+</ul>
+
+<p>To achieve the above, we use the following three features of vApprun: i) the IP pool, ii) IP allocation policy, and iii) dynamic properties. Each workspace has an IP Pool (see the <a href="#workspace">Workspace</a> section). This IP pool is configured with a list of free IP addresses and common network settings that are shared across all VMs in the workspace. To list or change the IP Pool configuration, use the <tt>workspace</tt> command:
+
+<pre class="code">
+>vapprun workspace
+IP Pool settings:
+  dns = 10.20.60.1
+  domainName = example.com
+  gateway = 10.20.63.253
+  hostPrefix = vapprun-
+  httpProxy =
+  netmask = 255.255.254.0
+  range = 10.20.63.230#4
+  searchPath = eng.example.com;example.com
+Free IP addreses
+  10.20.63.230, 10.20.63.231, 10.20.63.232, 10.20.63.233
+</pre>
+
+<p>An OVF property can directly refer to the values in the IP pool by specifying the type as <tt>expression</tt> and the value as <tt>${&lt;cmd&gt;:&lt;network&gt;}</tt>, where the <tt>cmd</tt> is one of the properties defined in the IP pool and <tt>network</tt> is the string <tt>Network</tt>. For example:</p>
+
+<pre class="code">
+>vapprun def-property MyVApp key=dns        type=expression value=\${dns:Network}
+>vapprun def-property MyVApp key=domainName type=expression value=\${domainName:Network}
+>vapprun def-property MyVApp key=gateway    type=expression value=\${gateway:Network}
+>vapprun def-property MyVApp key=hostPrefix type=expression value=\${hostPrefix:Network}
+>vapprun def-property MyVApp key=httpProxy  type=expression value=\${httpProxy:Network}
+>vapprun def-property MyVApp key=netmask    type=expression value=\${netmask:Network}
+>vapprun def-property MyVApp key=searchPath type=expression value=\${searchPath:Network}
+</pre>
+
+<p class="callout">Note: The \$ is a Linux/Mac OS X shell escape for a single dollar sign. On Windows, simply use a $ and put the arguments in quotes.</p>
+
+<p>The property key can be anything. In the above example, we used the same names as the IP pool names, but that is not a requirement. The benefit of using dynamic properties is that they are automatically assigned the values from the IP pool at start-up. Thus, the deployer does not have to manually enter these.</p>
+
+<p>The final expression type is the property assignment which has the form <tt>${&lt;fromKey&gt;}</tt>. This assigns a property value from a property defined in the parent vApp. We will use this in the <a href="#example">Example section</a>.</p>
+
+<p>By using the expression types, we can eliminate the need to type in common network configuration, such as DNS and gateways. The next issue is to simplify how IP addresses are assigned to the VMs. How an IP address is allocated and what IP address to use is highly deployment environment dependent. The deployer can specify whether the IP allocation policy should be DHCP, transient, or fixed. For DHCP, the virtual machine is instructed to allocate its own IP address using a DHCP server, for transient the IP address is allocated from the Workspace's IP pool, and finally for fixed, the deployer is specifying the value explicitly. The IP allocation policy is configured by using one of the following options <tt>-dhcp</tt>, <tt>-transient</tt>, or <tt>-fixed</tt> with the <tt>set-property</tt> command:</p>
+<pre class="code">
+>vapprun set-property -transient MyVApp    
+</pre>
+
+<p>The IP allocation policy affects how properties of type <tt>ip:Network</tt> behave:</p>
+<pre class="code">
+>vapprun def-property MyVApp key=dbIP type=ip:Network
+</pre>
+<p>Properties are initialized when a vApp/VM is powered on. For properties of the above type, the following happens:</p>
+<ul>
+<li>DHCP policy: The property will be initialized to the empty string, and once the power-on completes for the VM, the IP address retrieved through VMware tools are assigned into the property. See the <a href="#example">Example section</a> for more details.</li>
+<li>Transient policy: An IP address is allocated and assigned to the property from the workspace's IP pool. If the IP pool is empty, the power on operation will fail.</li>
+<li>Fixed policy: The deployer needs to explicitly configure the property with a value using the <tt>set-property</tt> command. If the property has no value, the power-on will fail.</li>
+</li>
+</ul>
+<p>Based on the above behavior, the guest can know whether to use DHCP or static IP assignment. If the property in the OVF environment is empty, it should use DHCP assignment. If the property is non-empty, it should use the IP address passed in as a static IP address. Notice that from the guest's perspective, it cannot tell the difference between transient and fixed policy.</p>
+
+<a name="example"></a>
+<h2>Example</h2>
+
+<p>To put it all together, lets see how we can use vApprun to create a multi-tiered LAMP stack with a database and app-server virtual machine. It will be configured through properties that automatically set up the IP connection from the Web VM to the DB VM, and for which we specify whether to use DHCP, transient, or fixed IP allocation policy. In this example, we will assume that we already have two VMs with the right guest code installed (to read and apply the OVF properties we define), so that we can just focus on the vApprun aspects of this.</p>
+
+To set up the LAMP vApp in the workspace, we execute the following set of operations:
+<pre class="code">
+# Step 1: Create vApp entity and properties
+vapprun create-vapp LAMP
+vapprun def-property LAMP key=ws_ip         type=ip:Network
+vapprun def-property LAMP key=db_ip         type=ip:Network
+vapprun def-property LAMP key=netmask       type=expression value=\${netmask:Network}
+vapprun def-property LAMP key=gateway       type=expression value=\${gateway:Network}
+vapprun def-property LAMP key=hostprefix    type=expression value=\${hostPrefix:Network}
+vapprun def-property LAMP key=dns           type=expression value=\${dns:Network}
+vapprun def-property LAMP key=dnssearchpath type=expression value=\${searchPath:Network}
+
+# Step 2: Setup webVM as a child VM and with a property ip assigned from parent vApp
+vapprun link-vm webVM vmx=~/VMs/webVm/webVm.vmx
+vapprun edit    webVM parent=LAMP
+vapprun def-property webVM key=ip type=expression value=\${ws_ip}
+
+# Step 3: Setup dbVM as a child VM and with a property ip assigned from parent vApp
+vapprun link-vm dbVM vmx=~/VMs/dbVm/dbVm.vmx
+vapprun edit  dbVM parent=LAMP
+vapprun edit  dbVM startOrder=10 startWait=320 waitForTools=True stopWait=320
+vapprun def-property dbVM key=ip type=expression value=\${db_ip}
+
+# Step 4: Setup a URL to the application server
+vapprun edit LAMP "appUrl=http://${ws_ip}/"
+</pre>
+
+<p>Notice that in Step 2 and 3, we use an expression property to assign the <tt>ip</</tt> property for the VM into the property with key <tt>ip</tt>. This is done for a couple of reasons: i) The same script can be used to configure the IP address inside the guest for both VMs, and 2) more importantly, this is the magic glue that makes ip assignment work if the DHCP ip allocation policy is chosen.</p>
+
+<p>Let's look at how the power-on sequence will proceed if the DHCP allocation policy is chosen: 
+<ol>
+<li>The start-up order of the VMs is such that the dbVM starts up first. When the dbVM starts up, both the property <tt>db_ip</tt> and <tt>ws_ip</tt> will be set to the empty string in its OVF environment. </li>
+<li>Since we have configured the startup to waitForGuest, we wait for VMware Tools to return us the IP address. Once we receive the IP address, we backfill the IP address into a property of type <tt>ip:Network</tt>. In this case, it will be the <tt>ip</tt> property of dbVM and the <tt>db_ip</tt> property of the LAMP vApp. The backfill follows assignments expression in reverse order.</li>
+<li>We then proceed to power-on the webVM (which is next in the power on start sequence). Its OVF environment will have the ip address of the dbVM in the <tt>db_ip</tt> property (since a VM also gets the properties of its parent vApp), and the <tt>ip</tt> and <tt>ws_ip</tt> properties will be empty. Thus, the webVM is able to hook up to the dbVM and know that it should allocate an IP address itself using DHCP.</li>
+<li>Once it is powered on, the same backfill happens, and we get the <tt>ws_ip</tt> property initialized in the OVF environment.</li>
+<li>Thus, the appUrl property will show the correct dynamic URL to the LAMP stack.</li>
+</ol>
+
+<p>To see what we created, we used the <tt>list</tt> command:</p>
+<pre class="code">
+Name.......: LAMP
+Type.......: vApp
+AppUrl.....: http://${ws_ip}/
+IP Policy..: transient
+
+Children:
+  Name             Order   StartWait   WaitForTools   StopWait
+  ------------------------------------------------------------
+  dbVM               10      320          True          320
+  webVM              20      320          True          320
+
+Property Definitions:
+  Key                       Type            Value                      UserConfig
+  -------------------------------------------------------------------------------
+  ws_ip                     ip:Network                                 True
+  db_ip                     ip:Network                                 True
+  netmask                   expression      ${netmask:Network}         False
+  gateway                   expression      ${gateway:Network}         False
+  hostprefix                expression      ${hostPrefix:Network}      False
+  dns                       expression      ${dns:Network}             False
+  searchpath                expression      ${searchPath:Network}      False
+</pre>
+
+<p>So all that is left is to power it on using the <tt>vapprun start LAMP</tt> command:</p>
+
+<pre class="code">
+>vapprun start LAMP
+Starting LAMP
+ Starting Database
+ Waiting for 120 secs...
+ Waiting for 110 secs...
+ Waiting for 100 secs...
+ Waiting for 90 secs...
+ Waiting for 80 secs...
+ (ip: 10.20.63.230)
+ Starting Web server
+ Waiting for 120 secs...
+ Waiting for 110 secs...
+ Waiting for 100 secs...
+ Waiting for 90 secs...
+ (ip: 10.20.63.231)
+Access at: http://10.20.63.231/
+</pre>
+
+<a name="learnmore"/></a>
+<h2>Learn More</h2>
+Use the following references to learn more about vApps, the Open Virtualization Format (OVF), and virtual appliances:
+<ul>
+<li>The <a href="http://blogs.vmware.com/vapp/">vApp Developer blog</a>. The following two blog entries are good starting points: <a href="http://blogs.vmware.com/vapp/2009/06/ovf-and-vapps-in-action-.html">OVF and vApps in Action!</a> and <a href="http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html">Self-Configuration and the OVF Environment</a>.</li>
+<li>The <a href="http://www.vmware.com/appliances/">Virtual Appliances marketplace</a> and <a href="http://www.vmware.com/appliances/getting-started/learn/vmware_studio.html">VMware Studio</a>.</li>  
+<li>The <a href="http://www.vmware.com/go/ovf">Open Virtual Machine Format</a> on vmware.com. This has links to the OVF specification and the VMware OVF Tool.</li>
+</ul>
+</div>
+<div id="footer">
+<p>(c)VMware Inc. January 2010</a>.
+</div>
+</body>
+</html>
