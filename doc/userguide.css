@@ -1,0 +1,163 @@
+
+a {
+  text-decoration: none;
+}
+
+code, .code {
+  font-size: 100%;
+  font-family: monospace;
+  color: #0f398d;
+}
+
+callout, .callout {
+  padding-bottom: 5px;
+  padding-top: 5px;
+  margin-left: 20px;
+  margin-bottom: 20px;
+  margin-right: 20px;
+  margin-top: 20px;
+  border-right-width: 1px;
+  position: relative;
+  display: compact;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+  border-top-width: 1px;
+  border-style: solid;
+  padding-left: 20px;
+  color: black;
+}
+
+body {
+  font: 13px verdana, arial, helvetica, sans-serif;
+}
+
+h1 {
+  margin-top: 0;
+  padding-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+h2, h3, h4, h5, h6 {
+  font-family: verdana, Helvetica, Arial, sans-serif;
+  margin-bottom: 0.25em;
+}
+
+h2 {
+  background-color: #e5ecf9;
+  margin-top: 2em;
+  border-top:1px solid #36C;
+  padding-left: 0.2em;
+}
+
+pre {
+  font-size: 9pt;
+  background-color: #f8f8ff;
+  margin: 1em 0 0 0;
+  padding: .99em;
+  line-height: 125%;
+  overflow: auto;
+  word-wrap: break-word;
+}
+
+li {
+  padding-bottom: 0.5em;
+}
+
+li pre {
+  margin: 0.5em 0px 1em 0px;
+}
+
+a:link {
+  color: #0f398d
+}
+
+a:visited {
+  color: #0b2455
+}
+
+a:hover {
+  color: #0000ff
+}
+
+
+div#content {
+  margin-left: 20%;
+  padding: 0 1em 2em 1em;
+  margin-top: 0px;
+}
+
+#topnav {
+  margin: 0px;
+  padding-top: 0.2em;
+  width: 100%;
+  white-space: nowrap;
+  background-color: #ffffff;
+  border-bottom: 2px solid black;
+  font: bold 150% verdana, Helvetica, Arial, sans-serif;
+}
+
+div#linkList {
+  margin-top: 1.5em;
+  padding-left: 0.5em;
+  font: 13px verdana, Helvetica, Arial, sans-serif;
+  float: left;
+  width: 18%;
+  background-color: white;
+  border: 2px solid black;
+}
+
+div#linkList ul {
+  padding: 1px;
+  list-style-type: none;
+}
+
+div#linkList li {
+  margin-left: 1em;
+  padding-bottom: 0.2em;
+}
+
+div#linkList2 li {
+  margin-left: 2em;
+  padding-bottom: 0.2em;
+  color: black;
+}
+
+div#linkList li.navhead {
+  font-weight: bold;
+  margin-left: 0px;
+  padding-bottom: 0.25em;
+}
+
+#nav dl {
+  margin: 0 0.5em 0 0.5em;
+  padding: 0px;
+}
+
+.navtop {
+  font-size: xx-small;
+  float: right;
+}
+
+#footer {
+  margin: 2em;
+  text-align: center;
+  color: #555;
+  font-size: small;
+}
+
+#footer a {
+  color: #555;
+}
+
+@media print {
+  div#linkList {
+    display: none;
+  }
+  .navtop {
+    display: none;
+  }
+  div#content {
+    margin-left: 0px;
+    border: none;
+  }
+}

@@ -1,0 +1,176 @@
+
+		VMware vApprun v1.0
+	    	January, 2010
+
+System Requirements
+-------------------
+
+VMware vApprun is supported on Windows, Linux, and Mac OS X. It requires the following
+software installed:
+
+ . Python 2.5 or 2.6 (www.python.org)
+ . VMware Workstation 6 or later (Windows/Linux)
+ . VMware Fusion 2 or later (Mac OS X)
+
+Installation
+------------
+
+1. Unzip the vmware-vapprun-1.0.zip file into the installation directory. For example,
+into c:\vapprun (Windows) or ~/vapprun (Linux/OS X).
+
+That will create the following directory structure:
+
+       <install-dir>/README 		(this file)
+       <install-dir>/vapprun.bat     
+       <install-dir>/vapprun
+       <install-dir>/src/
+
+2. Change your PATH, so that the installation directory is in the path. For example:
+
+     set PATH=c:\vapprun;%PATH%   (windows)
+ 
+  or 
+
+     export PATH=$HOME/vapprun:$PATH   (linux/OS X)
+
+3. Ensure that the python interpreter is in your path. If you can execute the python
+command in your shell, you should be fine.
+
+    >python
+    Python 2.6.1 (r261:67515, Jul  7 2009, 23:51:51) 
+    [GCC 4.2.1 (Apple Inc. build 5646)] on darwin
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> ^D
+
+Make sure that the version is 2.5.x or 2.6.x.
+
+Alternatively, you can set the PYTHON_HOME environment variable to point to your python
+installation directory.
+
+4. Finally, vapprun needs access to three utilities that are installed as part of VMware
+Workstation or VMware Fusion, namely vmrun, mkisofs, and vmware-vdiskmanager.
+
+The <install-dir>/vapprun.bat (Windows) and <install-dir>/vapprun (Linux/OS X) scripts
+are pre-configured with the default location of these tools.  If you have installed 
+VMware Fusion or VMware Workstation at a non default location, you will need to modify 
+your PATH to include these tools. 
+
+The default location of these tools are:
+  . /usr/bin                                      (Linux)
+  . /Library/Application Support/VMware Fusion/   (Mac OS X)
+  . C:\Program Files\VMware\VMware Workstation and
+    C:\Program Files\VMware\VMware VIX\           (Windows)
+  . C:\Program Files (x86)\VMware\VMware Workstation and
+    C:\Program Files (x86)\VMware\VMware VIX\     (Windows 64-bit)
+
+For Windows, you can set the VMWARE_HOME environment variable to point to your
+installation directory. For example:
+
+    set VMWARE_HOME=f:\Program Files (x86)
+
+Getting Started 
+---------------
+
+To validate the installation, let's first check that the vapprun command works:
+
+ >vapprun 
+ Usage: vapprun <command> [options] [<target> [<arguments>]]
+ Type 'vapprun help' for help
+
+Ok, so far so good. Next step is to create a workspace where we can create our vApps and
+virtual machines:
+
+ >mkdir vapp_workspace      # Creates a directory for your vapprun workspace 
+                             # (any name will do)
+ >cd vapp_workspace         
+ >vapprun init              # Initializes vapprun workspace
+ >vapprun list              # Views the content of the workspace
+ Empty workspace
+
+Let's create a vApp, a VM, and move the VM into the vApp:
+
+ >vapprun create-vapp myFirstVApp    # Creates an empty vApp
+
+ >vapprun create-vm myVm             # Creates a blank VM
+  Creating disk '/Users/renes/vapprun_workspace/myVm/vmx/disk.vmdk'
+  Virtual disk creation successful.
+  Created VM entity myVm successfully
+
+ >vapprun edit myVm parent=myFirstVApp  # Makes myVm part of myFirstVApp
+
+ Note: On Windows, you need to quote arguments that includes an equal sign (=), so use the
+ following command: vapprun edit myVm "parent=myFirstVApp"
+
+ >vapprun list 
+  Name                           Type   State         IP              AppUrl
+  --------------------------------------------------------------------------
+  myFirstVApp                    vApp  Powered Off                    
+    myVm                         VM    Powered Off
+
+Let's add an OVF property to our vApp. The property will be passed into the OVF environment
+of the myVm VM when we power on the vApp in a moment.
+
+  >vapprun def-property myFirstVApp key=myProperty type=string
+  >vapprun list myFirstVApp
+  Name.......: myFirstVApp
+  Type.......: vApp
+  IP Policy..: fixed
+
+  Children: 
+    Name             Order   StartWait   WaitForTools   StopWait
+    ------------------------------------------------------------
+    myVm               30       30          True           30
+
+  Property Definitions:
+    Key                       Type            Value                      UserConfig
+    -------------------------------------------------------------------------------
+    myProperty                string                                     True 
+
+  Property Settings:
+    Key                       Value
+    ------------------------------------------------
+    myProperty                CHANGE-ME           
+
+Let's set a value for the property, and see how the OVF environment for myVM will look like:
+
+  >vapprun set-property myFirstVApp myProperty=testValue
+  >vapprun list myVm
+  Name.......: myVm
+  Type.......: VM
+  VMX........: /Users/renes/vapp_workspace/myVm/vmx/vm.vmx
+  Parent.....: myFirstVApp
+  Transport..: iso com.vmware.guestInfo
+
+  OVF environment:
+    Key                       Value
+    ------------------------------------------------
+    myProperty                testValue           
+
+Finally, let's run our first vApp. But first, we will reconfigure the default start and
+stop delays to be a bit shorter.
+
+   >vapprun edit myVm startWait=5 stopWait=5
+   >vapprun start -gui myFirstVApp      # Default is to start VMs in headless mode
+   Starting myFirstVApp
+     Starting myVm
+     Waiting for 5 secs...
+
+Well, maybe not that exciting since it is just a blank VM. But the VM actually got
+started with an OVF environment initialized on an auto-generated ISO! Just as it would
+have on vSphere 4. Behind the scenes, vapprun created the OVF environment XML file (vmx/ovf-env.xml),
+wrapped it in an iso image (vmx/ovf-env.iso), and reconfigured the VM to mount this ISO (vmx/vm.vmx).
+The OVF environment is also available using the guestinfo.ovfEnv variable. 
+
+Let's shut it down again.
+
+   >vapprun stop myFirstVApp
+   Stopping myFirstVApp
+     Stopping myVm
+
+Ok, that is the end of the getting started. Hopefully, you have gotten an idea of how
+vapprun works. 
+
+A good next step is to read the user guide stored in the doc/ directory.
+
+-----------------------------------------------------------------------
+Copyright 2009-2015 VMware, Inc. January
