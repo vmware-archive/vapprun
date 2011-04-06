@@ -21,6 +21,13 @@ from ovfenv import *
 
 vmrunInstance = None
 
+# See http://www.py2exe.org/index.cgi/Py2ExeSubprocessInteractions
+# This does not adversely affect vapprun behavior.
+if sys.platform.startswith('win'):
+    NUL_STDERR = file('nul', 'a')
+else:
+    NUL_STDERR = None
+
 def initializeVmrunInstance():
     global vmrunInstance
     vmrunInstance = VmrunCommand("")
@@ -52,22 +59,49 @@ class VmrunCommand:
         cmd = [ self.vmrunCmd, "stop", vmxPath, action ]
         self.subprocessCall(cmd)                              
     
-    def subprocessCall(self, cmd):
+    def subprocessCall(self, cmd, exitOnFail=True):
         try:
-            subprocess.call(cmd)
+            # On Windows, inhibit the console window that
+            # pops up as a result of doing this.
+            if sys.platform.startswith('win'):
+                import win32process
+                opts = {'creationflags': win32process.CREATE_NO_WINDOW}
+            else:
+                opts = {}
+            subprocess.call(cmd, **opts)
         except:
             print "Error: Failed to execute " + cmd[0] + ". Is it in your path?"
-            sys.exit(1)
-            
+            if exitOnFail:
+                sys.exit(1)
+            return False
+
+        return True
+
     def readRuntimeVariable(self, vmxPath, name):
         cmd = [ self.vmrunCmd,
                 "readVariable",
                 vmxPath,
                 "runtimeConfig",
                 name]
-        pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE).stdout
-        out = pipe.read().strip().lower()
-        pipe.close()
+        # We pipe stdin even though we don't write anything to it,
+        # and use NUL_STDERR (on Windows, an explicit nul-pointing
+        # file handle.) This is to work around issues with py2exe
+        # and does not harm behavior on non-Windows platforms.
+        # Furthermore, on Windows, inhibit the console window that
+        # pops up as a result of doing this.
+        if sys.platform.startswith('win'):
+            import win32process
+            opts = {'creationflags': win32process.CREATE_NO_WINDOW}
+        else:
+            opts = {}
+
+        p = subprocess.Popen(cmd,
+                             stdout=subprocess.PIPE,
+                             stdin=subprocess.PIPE,
+                             stderr=NUL_STDERR,
+                             **opts)
+        out = p.stdout.read().strip().lower()
+        p.stdout.close()
         return out.strip()
     
     def readGuestInfoIp(self, vmxPath):
@@ -114,12 +148,8 @@ class VmrunCommand:
                 "-s", diskSize + "GB",  # capacity
                 "-a", "lsilogic",       # adapter type
                 filename]
-        try:
-            subprocess.call(cmd)
-        except:
-            print "Error: Failed to execute " + cmd[0] + ". Is it in your path?"
-            return False
-        return True
+
+        return self.subprocessCall(cmd, exitOnFail=False)
         
     def createVmxFile(self, vmxPath, name, memSize, diskFile):
         vmxTemplatePath = os.path.join(self.getInstallDir(), "template.vmx")
