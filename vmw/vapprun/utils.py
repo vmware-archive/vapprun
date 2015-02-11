@@ -23,14 +23,12 @@ options = {}
 
 
 def GetCmdOption(name, default):
-    global options
     if name not in options:
         return default
     return options[name]
 
 
 def SetCmdOption(name, value):
-    global options
     options[name] = value
 
 
