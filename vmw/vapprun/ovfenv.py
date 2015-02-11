@@ -34,12 +34,13 @@ def createOvfEnvIso(filename, content):
 
     OsTryRemove(filename)
     cmd = [mkisofsCmd,
+           "-r",  # don't propagate owner/permissions
+           "-V", "OVF ENV",  # align label with what vsphere does
            "-quiet",
            "-rock",
            "-joliet",
            "-full-iso9660-filenames",
-           "-o",
-           filename,
+           "-o", filename,
            imagedir]
     try:
         subprocess.call(cmd)
