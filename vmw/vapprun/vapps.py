@@ -245,11 +245,11 @@ class DeployParams:
             return ""
 
     def userItems(self):
-        l = filter(lambda(k, v): k in self.userKeys, self.config.items())
+        l = [(k, v) for (k, v) in self.config.items() if k in self.userKeys]
         if self.isFixedIpPolicy():
             return l
         else:
-            return filter(lambda (k, v): k not in self.ipKeys, l)
+            return [(k, v) for (k, v) in l if k in self.ipKeys]
 
     def items(self):
         return self.config.items()
