@@ -268,7 +268,7 @@ class VmrunCommand:
         (dir, basename) = os.path.split(vmxFile)
         (name, ext) = os.path.splitext(basename)
 
-        transport = map(string.lower, transport)
+        transport = [s.lower() for s in transport]
         doIso = "iso" in transport
         doGuestInfo = "com.vmware.guestinfo" in transport
         if not doIso and not doGuestInfo:
