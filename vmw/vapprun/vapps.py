@@ -179,7 +179,7 @@ class DeployParams:
         self.userKeys = userKeys
         self.allocationPolicy = "fixed"
         for k in userKeys:
-            self.config[k] = "CHANGE-ME"
+            self.config[k] = ""
         # IP keys are initialized to the empty string,
         # since they might be used by transient or DHCP.
         for k in ipKeys:
