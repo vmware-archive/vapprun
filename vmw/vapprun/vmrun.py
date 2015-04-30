@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import division, absolute_import
-from __future__ import print_function, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import os
+import string
 import subprocess
 import sys
-import string
 
-from pkg_resources import (ResourceManager, get_provider)
+from pkg_resources import ResourceManager, get_provider
 
-from .commands import vmrunCmd, vdiskmanagerCmd
-from .utils import (GetCmdOption, OsMkdirs, OsTryRmdir, OsTryRemove,
-                    CreateRelPath, WriteTxtFile)
+from .commands import vdiskmanagerCmd, vmrunCmd
 from .ovfenv import createOvfEnvIso
+from .utils import (CreateRelPath, GetCmdOption, OsMkdirs, OsTryRemove,
+                    OsTryRmdir, WriteTxtFile)
 
 vmrunInstance = None
 
@@ -74,6 +74,7 @@ class VmrunCommand:
             else:
                 opts = {}
             subprocess.call(cmd, **opts)
+            return True
         except:
             print("Error: Failed to execute ", cmd[0], ". Is it in your path?")
             if exitOnFail:

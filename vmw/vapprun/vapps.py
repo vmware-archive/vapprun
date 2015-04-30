@@ -20,12 +20,12 @@ import re
 import sys
 import time
 
-from .ovfenv import createOvfEnvDoc
-from .utils import (NewXmlNode, BoolToStr, StrToBool, ReadXmlDoc,
-                    NewXmlTextNode, OsTryRemove, OsFileListRemove,
-                    GetCmdOption, CreateRelPath, OsFileList)
-from .vmrun import getVmrunInstance
 from .ippool import CreateIpPool
+from .ovfenv import createOvfEnvDoc
+from .utils import (BoolToStr, CreateRelPath, GetCmdOption, NewXmlNode,
+                    NewXmlTextNode, OsFileList, OsFileListRemove, OsTryRemove,
+                    ReadXmlDoc, StrToBool)
+from .vmrun import getVmrunInstance
 
 WORKSPACE_CFG_NAME = "vapprun.cfg"
 VM_CFG_NAME = "vm.cfg"
