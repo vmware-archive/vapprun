@@ -18,7 +18,7 @@ from __future__ import (absolute_import, division, print_function,
 import re
 
 
-class IpPool:
+class IpPool(object):
 
     def __init__(self, ipSet):
         self.ipSet = ipSet
