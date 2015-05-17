@@ -25,76 +25,81 @@ from .commands import mkisofsCmd
 from .utils import OsTryRemove
 
 
-def createOvfEnvIso(filename, content):
-    imagedir = tempfile.mkdtemp()
-    ovfEnvPath = os.path.join(imagedir, "ovf-env.xml")
+class OvfEnv(object):
 
-    with open(ovfEnvPath, "w") as f:
-        print(content, file=f)
+    def __init__(self, id, env):
+        self._id = id
+        self._env = env
 
-    OsTryRemove(filename)
-    cmd = [mkisofsCmd,
-           "-r",  # don't propagate owner/permissions
-           "-V", "OVF ENV",  # align label with what vsphere does
-           "-quiet",
-           "-rock",
-           "-joliet",
-           "-full-iso9660-filenames",
-           "-o", filename,
-           imagedir]
-    try:
-        subprocess.call(cmd)
-    except:
-        print("Error: Failed to execute mkisofs command. Is it in your path?")
-        sys.exit(1)
+    def create_iso(self, fname):
+        imagedir = tempfile.mkdtemp()
+        path = os.path.join(imagedir, "ovf-env.xml")
 
-    os.remove(ovfEnvPath)
-    os.rmdir(imagedir)
+        with open(path, "w") as f:
+            f.write(self.create_doc())
 
+        OsTryRemove(fname)
+        cmd = [mkisofsCmd,
+               "-r",  # don't propagate owner/permissions
+               "-V", "OVF ENV",  # align label with what vsphere does
+               "-quiet",
+               "-rock",
+               "-joliet",
+               "-full-iso9660-filenames",
+               "-o", fname,
+               imagedir]
+        try:
+            subprocess.call(cmd)
+        except:
+            print("Error: Failed to execute command '%s'" % (mkisofsCmd))
+            sys.exit(1)
 
-def createOvfEnvDoc(vappEnv, selfId):
-    header = Template('''<?xml version="1.0" encoding="UTF-8"?>
+        os.remove(path)
+        os.rmdir(imagedir)
+
+    def create_doc(self):
+        header = Template('''<?xml version="1.0" encoding="UTF-8"?>
 <Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
              oe:id="${id}">''')
-    platformSection = '''   <PlatformSection>
+        platformSection = '''   <PlatformSection>
        <Kind>vapprun</Kind>
        <Version>1.0</Version>
        <Vendor>VMware, Inc.</Vendor>
        <Locale>en_US</Locale>
    </PlatformSection>'''
-    propertyHeader = '''
+        propertyHeader = '''
    <PropertySection>'''
-    propertyEntry = Template('''
+        propertyEntry = Template('''
       <Property oe:key="${key}" oe:value="${value}"/>''')
-    propertyFooter = '''
+        propertyFooter = '''
    </PropertySection>'''
-    entityHeader = Template('''
+        entityHeader = Template('''
     <Entity oe:id="${id}">''')
-    entityFooter = '''
+        entityFooter = '''
     </Entity>'''
-    footer = '''
+        footer = '''
     </Environment>'''
 
-    def createPropSection(props, out):
-        out.append(propertyHeader)
-        for key, value in props.items():
-            out.append(propertyEntry.substitute(key=key, value=value))
-        out.append(propertyFooter)
+        def createPropSection(props, out):
+            out.append(propertyHeader)
+            for key, value in props.items():
+                out.append(propertyEntry.substitute(key=key, value=value))
+            out.append(propertyFooter)
 
-    # propEnv = vappEnv[selfId]
+        # propEnv = vappEnv[selfId]
 
-    # String join is a very efficient way of building strings in python
-    out = []
-    out.append(header.substitute(id=selfId))
-    out.append(platformSection)
-    createPropSection(vappEnv[selfId], out)
-    for id in vappEnv:
-        if id != selfId:
-            out.append(entityHeader.substitute(id=id))
-            createPropSection(vappEnv[id], out)
-            out.append(entityFooter)
-    out.append(footer)
+        # String join is a very efficient way of building strings in python
+        out = []
+        out.append(header.substitute(id=self._id))
+        out.append(platformSection)
+        createPropSection(self._env[self._id], out)
+        for id in self._env:
+            if id != self._id:
+                out.append(entityHeader.substitute(id=id))
+                createPropSection(self._env[id], out)
+                out.append(entityFooter)
+        out.append(footer)
 
-    return ''.join(out)
+        return ''.join(out)

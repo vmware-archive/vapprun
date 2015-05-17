@@ -21,7 +21,7 @@ import sys
 import time
 
 from .ippool import CreateIpPool
-from .ovfenv import createOvfEnvDoc
+from .ovfenv import OvfEnv
 from .utils import (BoolToStr, CreateRelPath, GetCmdOption, NewXmlNode,
                     NewXmlTextNode, OsFileList, OsFileListRemove, OsTryRemove,
                     ReadXmlDoc, StrToBool)
@@ -582,7 +582,7 @@ class VmEntity(Entity):
             for c in self.parent.children:
                 vappEnv[c.name] = c.ovfEnvProps
 
-        ovfEnv = createOvfEnvDoc(vappEnv, self.name)
+        ovfEnv = OvfEnv(self.name, vappEnv)
         vmrun.patchVmxFile(self.vmxFile, ovfEnv, self.transport)
 
         spc = " " * indent

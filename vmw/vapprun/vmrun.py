@@ -23,7 +23,6 @@ import sys
 from pkg_resources import ResourceManager, get_provider
 
 from .commands import vdiskmanagerCmd, vmrunCmd
-from .ovfenv import createOvfEnvIso
 from .utils import (CreateRelPath, GetCmdOption, OsMkdirs, OsTryRemove,
                     OsTryRmdir, WriteTxtFile)
 
@@ -282,7 +281,7 @@ class VmrunCommand:
         # Generate ISO
         if doIso:
             ovfEnvIsoFile = os.path.join(dir, "ovf-env.iso")
-            createOvfEnvIso(ovfEnvIsoFile, ovfEnv)
+            ovfEnv.create_iso(ovfEnvIsoFile)
 
             # Detect CD ROM device
             device = self.detectCdRomDevice(vmxFile)
@@ -293,7 +292,7 @@ class VmrunCommand:
 
             # Save ovf-env to be nice
             ovfEnvFile = os.path.join(dir, "ovf-env.xml")
-            WriteTxtFile(ovfEnvFile, ovfEnv)
+            WriteTxtFile(ovfEnvFile, ovfEnv.create_doc())
 
             dropKeys.add(device + ".filename")
             dropKeys.add(device + ".devicetype")
@@ -312,7 +311,7 @@ msg.autoAnswer = "TRUE"
         if doGuestInfo:
             endBlock += '''
 guestinfo.ovfEnv = "%s"
-''' % (self.vmxEscape(ovfEnv))
+''' % (self.vmxEscape(ovfEnv.create_doc()))
 
         self.rewriteVmxFile(vmxFile, dropKeys, endBlock)
 
