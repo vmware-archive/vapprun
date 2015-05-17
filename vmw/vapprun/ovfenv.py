@@ -80,7 +80,8 @@ class OvfEnv(object):
         entityFooter = '''
     </Entity>'''
         footer = '''
-    </Environment>'''
+</Environment>
+'''
 
         def createPropSection(props, out):
             out.append(propertyHeader)
