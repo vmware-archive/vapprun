@@ -76,7 +76,9 @@ Commands = {
   "start": (
     "Starts a vApp",
     { "-n" : "Dry-run mode (do not execute power-on)",
-      "-gui" : "Launch console (non headless mode)" },
+      "-v" : "Verbose (list OVF environment)",
+      "-gui" : "Launch console (non headless mode)" 
+    },
     "required", {} ),
   
   "stop": (
@@ -497,17 +499,18 @@ def listEntity(target, quickMode):
                 print "  %-25s %-20s" % (key,  value)
             print
     
+    props = {}
     if e.isVM():        
-        props = e.computeOvfEnvProps()
+        props = e.computeOvfEnvProps().items()
         if len(props) > 0:        
             print
             print "OVF environment:"            
             print "  Key                       Value"
             print "  ------------------------------------------------"            
-            for key, value in props.items():                                                  
-                print "  %-25s %-20s" % (key, value)
+            for key, value in props:                                                  
+                print "  %-25s %-20s" % (key, value)        
 
-    expandedAppUrl = e.getExpandedAppUrl()
+    expandedAppUrl = e.getExpandedAppUrl(props)
     if len(expandedAppUrl) > 0:
         print "Access at..:", expandedAppUrl
 

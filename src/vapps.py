@@ -49,11 +49,11 @@ class Property:
                   .setAttr("value", self.value) \
                   .setAttr("userConfigurable", BoolToStr(self.userConfig)) 
     
-    def parseMacro(self):
-        exp = re.compile("^\${(\w+)(:(\w+))?}$")
-        macro = exp.match(self.value)
+    def parseMacro(self):      
+        exp = re.compile("^\${([\w\.]+)(:([\w\.]+))?}$")
+        macro = exp.match(self.value)       
         if macro == None: return (None, None)
-        (cmd, dummy, arg) = macro.groups()
+        (cmd, dummy, arg) = macro.groups()        
         return (cmd, arg)
         
     def effectiveValue(self, deployParams, parentEnv=set()):
@@ -61,7 +61,7 @@ class Property:
         
         if not self.isMacro():
             val = deployParams[self.key].strip()
-            if len(val) == 0:
+            if not self.userConfig or len(val) == 0:
                 return self.value
             return val         
                     
@@ -337,10 +337,12 @@ class Entity:
         for p in self.properties:
             node.addChild(p.asXmlNode())
 
-    def getExpandedAppUrl(self):
-        dp = self.getDeployParams()
+    def getExpandedAppUrl(self, props = None):
+        if props == None:
+           dp = self.getDeployParams()
+           props = dp.config.items()
         expandedAppUrl = self.appUrl
-        for (key, value) in dp.config.items():
+        for (key, value) in props:
             macro = "${" + key + "}"
             if self.appUrl.find(macro) >= 0 and value == "":
                 return ""            
@@ -420,7 +422,7 @@ class Entity:
 
         return self.deployParams
         
-    def computeOvfEnvProps(self,):
+    def computeOvfEnvProps(self):
         deployParams = self.getDeployParams()
         
         parentProps = {}
