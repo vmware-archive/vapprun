@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Copyright 2009-2015 VMware, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,13 +23,14 @@ import sys
 from string import strip
 from urllib import unquote
 
-from ippool import CreateIpPool
-from utils import (GetCmdOption, OsFileList, OsFileListRemove, SetCmdOption,
-                   StrToBool)
-from vapps import (VAPP_CFG_NAME, VM_CFG_NAME, Property, VAppEntity, VmEntity,
-                   createNewWorkspace, getVAppsInstance,
-                   initializeVAppInventory, locateVAppsDirectory)
-from vmrun import getVmrunInstance, initializeVmrunInstance
+from vmw.vapprun.ippool import CreateIpPool
+from vmw.vapprun.utils import (GetCmdOption, OsFileList, OsFileListRemove,
+                               SetCmdOption, StrToBool)
+from vmw.vapprun.vapps import (VAPP_CFG_NAME, VM_CFG_NAME, Property,
+                               VAppEntity, VmEntity, createNewWorkspace,
+                               getVAppsInstance, initializeVAppInventory,
+                               locateVAppsDirectory)
+from vmw.vapprun.vmrun import getVmrunInstance, initializeVmrunInstance
 
 Commands = {
 

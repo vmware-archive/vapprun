@@ -21,17 +21,18 @@ import tempfile
 import os
 import sys
 
-import utils
+from .commands import mkisofsCmd
+from .utils import OsTryRemove
 
 
-def createOvfEnvIso(filename, mkisofsCmd, content):
+def createOvfEnvIso(filename, content):
     imagedir = tempfile.mkdtemp()
     ovfEnvPath = os.path.join(imagedir, "ovf-env.xml")
 
     with open(ovfEnvPath, "w") as f:
         print(content, file=f)
 
-    utils.OsTryRemove(filename)
+    OsTryRemove(filename)
     cmd = [mkisofsCmd,
            "-quiet",
            "-rock",

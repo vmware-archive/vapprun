@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export VAPPRUN="$PWD/vapprun"
+export VAPPRUN="$PWD/bin/vapprun"
+export PYTHONPATH="$PWD:$PYTHONPATH"
 
 create_workspace() {
     export VAPPRUN_WORKSPACE=$(mktemp -d -p $BATS_TMPDIR)

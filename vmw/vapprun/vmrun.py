@@ -20,9 +20,12 @@ import subprocess
 import sys
 import string
 
-from utils import (GetCmdOption, OsMkdirs, OsTryRmdir, OsTryRemove,
-                   CreateRelPath, WriteTxtFile)
-from ovfenv import createOvfEnvIso
+from pkg_resources import (ResourceManager, get_provider)
+
+from .commands import vmrunCmd, vdiskmanagerCmd
+from .utils import (GetCmdOption, OsMkdirs, OsTryRmdir, OsTryRemove,
+                    CreateRelPath, WriteTxtFile)
+from .ovfenv import createOvfEnvIso
 
 vmrunInstance = None
 
@@ -36,7 +39,7 @@ else:
 
 def initializeVmrunInstance():
     global vmrunInstance
-    vmrunInstance = VmrunCommand("")
+    vmrunInstance = VmrunCommand()
 
 
 def getVmrunInstance():
@@ -46,17 +49,11 @@ def getVmrunInstance():
 
 class VmrunCommand:
 
-    def __init__(self, toolsPath=""):
-        self.toolsPath = toolsPath
-        self.vmrunCmd = "vmrun"  # We assume it is in the path
-        self.mkisofsCmd = "mkisofs"
-        self.vdiskmanagerCmd = "vmware-vdiskmanager"
-
     def powerOn(self, vmxPath):
         guiOption = "nogui"
         if GetCmdOption("gui", False):
             guiOption = "gui"
-        cmd = [self.vmrunCmd, "start", vmxPath, guiOption]
+        cmd = [vmrunCmd, "start", vmxPath, guiOption]
         self.subprocessCall(cmd)
 
     def powerOff(self, vmxPath, hard=False):
@@ -64,7 +61,7 @@ class VmrunCommand:
             action = "hard"
         else:
             action = "soft"
-        cmd = [self.vmrunCmd, "stop", vmxPath, action]
+        cmd = [vmrunCmd, "stop", vmxPath, action]
         self.subprocessCall(cmd)
 
     def subprocessCall(self, cmd, exitOnFail=True):
@@ -86,7 +83,7 @@ class VmrunCommand:
         return True
 
     def readRuntimeVariable(self, vmxPath, name):
-        cmd = [self.vmrunCmd,
+        cmd = [vmrunCmd,
                "readVariable",
                vmxPath,
                "runtimeConfig",
@@ -130,9 +127,6 @@ class VmrunCommand:
         else:
             return ("Powered On", out)
 
-    def getInstallDir(self):
-        return os.path.dirname(sys.argv[0])
-
     def createVm(self, vmxFile, name, memSize, diskSize):
         dir = os.path.dirname(vmxFile)
         cleanupList = OsMkdirs(dir)
@@ -148,9 +142,8 @@ class VmrunCommand:
         self.createVmxFile(vmxFile, name, memSize, diskFile)
 
     def createSparseVmdk(self, filename, diskSize):
-        diskCreatePath = os.path.join(self.toolsPath, self.vdiskmanagerCmd)
         OsTryRemove(filename)
-        cmd = [diskCreatePath,
+        cmd = [vdiskmanagerCmd,
                "-c",
                "-t", "0",              # monoSparse
                "-s", diskSize + "GB",  # capacity
@@ -159,11 +152,21 @@ class VmrunCommand:
 
         return self.subprocessCall(cmd, exitOnFail=False)
 
+    def getTemplate(self, fname):
+        current_module = sys.modules[__name__]
+        provider = get_provider(current_module.__package__)
+        manager = ResourceManager()
+
+        p = "/".join(['templates', fname])
+
+        if not provider.has_resource(p):
+            raise Exception("Template not found: %s", fname)
+
+        return provider.get_resource_string(manager, p)
+
     def createVmxFile(self, vmxPath, name, memSize, diskFile):
-        vmxTemplatePath = os.path.join(self.getInstallDir(), "template.vmx")
-        vmxTemplateFile = open(vmxTemplatePath, "r")
-        vmxTemplate = string.Template(vmxTemplateFile.read())
-        vmxTemplateFile.close()
+        vmxTemplateString = self.getTemplate('template.vmx')
+        vmxTemplate = string.Template(vmxTemplateString)
 
         # Make diskFile relative to vmx file
         diskFile = CreateRelPath(os.path.dirname(vmxPath), diskFile)
@@ -278,7 +281,7 @@ class VmrunCommand:
         # Generate ISO
         if doIso:
             ovfEnvIsoFile = os.path.join(dir, "ovf-env.iso")
-            createOvfEnvIso(ovfEnvIsoFile, self.mkisofsCmd, ovfEnv)
+            createOvfEnvIso(ovfEnvIsoFile, ovfEnv)
 
             # Detect CD ROM device
             device = self.detectCdRomDevice(vmxFile)
