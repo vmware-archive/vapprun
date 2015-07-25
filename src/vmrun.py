@@ -175,9 +175,8 @@ class VmrunCommand:
         vmx = vmxTemplate.substitute(subMap)
 
         OsTryRemove(vmxPath)
-        vmxFile = open(vmxPath, "w")
-        print(vmx, file=vmxFile)
-        vmxFile.close()
+        with open(vmxPath, "w") as vmxFile:
+            print(vmx, file=vmxFile)
 
     def vmxEscape(self, str):
         escaped = ['#', '|', '\\', '"']
@@ -343,9 +342,9 @@ guestinfo.ovfEnv = "%s"
             key, value = self.splitVmxEntry(line)
             if key in dropKeys:
                 continue
-            print >> vmxOut, line
+            print(line, file=vmxOut)
 
-        print >> vmxOut, endBlock
+        print(endBlock, file=vmxOut)
 
         vmxIn.close()
         vmxOut.close()

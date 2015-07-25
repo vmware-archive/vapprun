@@ -110,9 +110,8 @@ def CreateRelPath(baseDir, dir):
 
 def WriteTxtFile(file, content):
     OsTryRemove(file)
-    f = open(file, "wt")
-    print >> f, content
-    f.close()
+    with open(file, "wt") as f:
+        print(content, file=f)
 
 
 class MyConfigParser(ConfigParser.ConfigParser):

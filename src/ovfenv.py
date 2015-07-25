@@ -28,9 +28,8 @@ def createOvfEnvIso(filename, mkisofsCmd, content):
     imagedir = tempfile.mkdtemp()
     ovfEnvPath = os.path.join(imagedir, "ovf-env.xml")
 
-    file = open(ovfEnvPath, "w")
-    print >> file, content
-    file.close()
+    with open(ovfEnvPath, "w") as f:
+        print(content, file=f)
 
     utils.OsTryRemove(filename)
     cmd = [mkisofsCmd,
