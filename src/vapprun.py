@@ -12,169 +12,171 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# General python
-import sys
-import os
-from string import Template, strip
-import operator
-import re
-import time
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-# vapprun specific libs
-from vmrun  import *
-from utils  import *
-from ovfenv import *
-from vapps  import *
+# General python
+import os
+import sys
+from string import strip
 from urllib import unquote
 
-import pdb
+from ippool import CreateIpPool
+from utils import (GetCmdOption, OsFileList, OsFileListRemove, SetCmdOption,
+                   StrToBool)
+from vapps import (VAPP_CFG_NAME, VM_CFG_NAME, Property, VAppEntity, VmEntity,
+                   createNewWorkspace, getVAppsInstance,
+                   initializeVAppInventory, locateVAppsDirectory)
+from vmrun import getVmrunInstance, initializeVmrunInstance
 
 Commands = {
-  
-  # Commands = ( Options, Target, Properties)
-  #  Options = { "-option" : "Description" } of None
-  #  Target = "none", "optional", "required"
-  #  Properties = { "key" : ( "default value", "description") }
-  #
-  "init":  (
-      "Initializes a new vapprun workspace",
-      {} , "none", {}),
-  
-  "help":  (
-     "Show help",
-     {}, "optional", {}),
-  
-  "list":  (
-    "List vApps in workspace or details on a particular vApp/VM",
-    { "-q" : "Quick mode (does not check power-state)" },
-     "optional", 
-     {}),
-  
-  "create-vm": (
-    "Creates a new VM-vApp",
-    {}, "required",
-    { "memory" : ("512", "Memory size in MB"),
-      "disk"   : ("5",   "Disk size in GB") }),
-  
-  "link-vm": (
-    "Creates a VM-vApp that links to existing .vmx file",
-    {}, "required",
-    { "vmx"  : ("", "A path to a .vmx file") }),
-  
-  "create-vapp": (
-    "Creates a new vApp",
-    {}, "required", {} ),
-  
-  "delete": (
-    "Deletes an entity",
-    { "-q" : "Quick mode (does not check power-state)",
-      "-r" : "Recursive delete of child entities"
-    }, 
-      "multi", 
-    {} ),
-    
-  "start": (
-    "Starts a vApp",
-    { "-n" : "Dry-run mode (do not execute power-on)",
-      "-v" : "Verbose (list OVF environment)",
-      "-gui" : "Launch console (non headless mode)" 
-    },
-    "required", {} ),
-  
-  "stop": (
-    "Stops a vApp",
-    { "-n"   : "Dry-run mode (do not execute power-off)"},
-      "required", {} ),
-  
-  "shutdown": (
-    "Shutsdown a vApp",
-    { "-n"   : "Dry-run mode (do not execute power-off)" },
-    "required", {} ),
-  
-  "def-property": (
-    "Adds or reconfigures a property on a vApp/VM",
-    { "-d"   : "Delete a property" }, 
-    "required",
-    { "key"    : ( "", "Unique identifier for the property" ),
-      "type"   : ( "", "The property type" ),
-      "value"  : ( "", "The default value for the property" ),
-      "userConfigurable" : ("", "Whether the property can be edited by the deployer") }),
 
-  "set-property" : (
-    "Sets deployment specific property values and allocation options",
-    { "-dhcp"  : "Set DHCP ip allocation policy",
-      "-fixed" : "Set fixed IP allocation policy",
-      "-transient" : "Set transient (IP Pool) allocation policy" },
-      "required",
-    { "*" : ("", "Sets a property key=value") }),
-  
-  "edit" : (
-    "Reconfigures the vApp structure",
-     {}, "required",
-     { "parent"        : ("*", "Sets the parent."),
-       "name"          : ("*", "Renames the vApp"),
-       "tag"           : ("*", "Sets the tag for the vApp"),
-       "startOrder"    : ("", "Sets the startOrder"),
-       "startWait"     : ("", "Max. delay to wait for boot-up"),
-       "waitForTools"  : ("", "Whether to continue boot when tools is ready"),
-       "stopWait"      : ("", "Time to wait for shutdown"), 
-       "transport"     : ("*", "Specifies the OVF environment transport (VM only)"),
-       "appUrl"        : ("*", "Application URL")}),
-  
-  "fsck" : (
-    "List or clean up stray files in the workspace",
-    { "-d" : "delete the files"},
-    "none", {}),
-  
-  "workspace" : (
-    "Lists/configures the workspace",
-    { "-q" : "Quick mode (does not show IP pool information)" }, 
-    "none",
-    { "netmask"       : ( "", "Value for the ${netmask:} macro"), 
-      "domainName"    : ( "", "Value for the ${domainName:} macro"),
-      "gateway"       : ( "", "Value for the ${gateway:} macro"), 
-      "hostPrefix"    : ( "", "Value for the ${hostPrefix:} macro"), 
-      "dns"           : ( "", "Value for the ${dns:} macro"),
-      "searchPath" :    ( "", "Value for the ${searchPath:} macro"), 
-      "httpProxy"     : ( "", "Value for the ${httpProxy:} macro"), 
-      "range"       : ( "", "Values for the ${ip:} macro. This must be in the form as <base IP>#<count>") 
-    })
+    # Commands = ( Options, Target, Properties)
+    #  Options = { "-option" : "Description" } of None
+    #  Target = "none", "optional", "required"
+    #  Properties = { "key" : ( "default value", "description") }
+
+    "init":  (
+        "Initializes a new vapprun workspace",
+        {}, "none", {}),
+
+    "help":  (
+        "Show help",
+        {}, "optional", {}),
+
+    "list":  (
+        "List vApps in workspace or details on a particular vApp/VM",
+        {"-q": "Quick mode (does not check power-state)"},
+        "optional",
+        {}),
+
+    "create-vm": (
+        "Creates a new VM-vApp",
+        {}, "required",
+        {"memory": ("512", "Memory size in MB"),
+         "disk": ("5", "Disk size in GB")}),
+
+    "link-vm": (
+        "Creates a VM-vApp that links to existing .vmx file",
+        {}, "required",
+        {"vmx": ("", "A path to a .vmx file")}),
+
+    "create-vapp": (
+        "Creates a new vApp",
+        {}, "required", {}),
+
+    "delete": (
+        "Deletes an entity",
+        {"-q": "Quick mode (does not check power-state)",
+         "-r": "Recursive delete of child entities"},
+        "multi",
+        {}),
+
+    "start": (
+        "Starts a vApp",
+        {"-n": "Dry-run mode (do not execute power-on)",
+         "-v": "Verbose (list OVF environment)",
+         "-gui": "Launch console (non headless mode)"},
+        "required", {}),
+
+    "stop": (
+        "Stops a vApp",
+        {"-n": "Dry-run mode (do not execute power-off)"},
+        "required", {}),
+
+    "shutdown": (
+        "Shutsdown a vApp",
+        {"-n": "Dry-run mode (do not execute power-off)"},
+        "required", {}),
+
+    "def-property": (
+        "Adds or reconfigures a property on a vApp/VM",
+        {"-d": "Delete a property"},
+        "required",
+        {"key": ("", "Unique identifier for the property"),
+         "type": ("", "The property type"),
+         "value": ("", "The default value for the property"),
+         "userConfigurable":
+         ("", "Whether the property can be edited by the deployer")}),
+
+    "set-property": (
+        "Sets deployment specific property values and allocation options",
+        {"-dhcp": "Set DHCP ip allocation policy",
+         "-fixed": "Set fixed IP allocation policy",
+         "-transient": "Set transient (IP Pool) allocation policy"},
+        "required",
+        {"*": ("", "Sets a property key=value")}),
+
+    "edit": (
+        "Reconfigures the vApp structure",
+        {}, "required",
+        {"parent": ("*", "Sets the parent."),
+         "name": ("*", "Renames the vApp"),
+         "tag": ("*", "Sets the tag for the vApp"),
+         "startOrder": ("", "Sets the startOrder"),
+         "startWait": ("", "Max. delay to wait for boot-up"),
+         "waitForTools": ("", "Whether to continue boot when tools is ready"),
+         "stopWait": ("", "Time to wait for shutdown"),
+         "transport": ("*",
+                       "Specifies the OVF environment transport (VM only)"),
+         "appUrl": ("*", "Application URL")}),
+
+    "fsck": (
+        "List or clean up stray files in the workspace",
+        {"-d": "delete the files"},
+        "none", {}),
+
+    "workspace": (
+        "Lists/configures the workspace",
+        {"-q": "Quick mode (does not show IP pool information)"},
+        "none",
+        {"netmask": ("", "Value for the ${netmask:} macro"),
+         "domainName": ("", "Value for the ${domainName:} macro"),
+         "gateway": ("", "Value for the ${gateway:} macro"),
+         "hostPrefix": ("", "Value for the ${hostPrefix:} macro"),
+         "dns": ("", "Value for the ${dns:} macro"),
+         "searchPath": ("", "Value for the ${searchPath:} macro"),
+         "httpProxy": ("", "Value for the ${httpProxy:} macro"),
+         "range": ("", "Values for the ${ip:} macro."
+                   "This must be in the form as <base IP>#<count>")}
+    )
 }
 
-def main():               
+
+def main():
     initializeVmrunInstance()
-    
-    args =  sys.argv[1:]
+
+    args = sys.argv[1:]
     if len(args) < 1:
-       print "VMware vApprun 1.0 (January 2010)"
-       print "Usage: vapprun <command> [options] [<target> [<arguments>]]"
-       print "Type 'vapprun help' for help"
-       return
-    
+        print("VMware vApprun 1.0 (January 2010)")
+        print("Usage: vapprun <command> [options] [<target> [<arguments>]]")
+        print("Type 'vapprun help' for help")
+        return
+
     cmd = args[0]
     args = args[1:]
-        
+
     if cmd == "help":
         if len(args) == 1:
             usageCmd(args[0])
         else:
             usage()
         return
-                  
-    if not cmd in Commands:
-        print "Error: Unknown command", cmd
-        print "Type 'vapprun help' for help"
+
+    if cmd not in Commands:
+        print("Error: Unknown command", cmd)
+        print("Type 'vapprun help' for help")
         return
-    
+
     options = []
     while len(args) > 0 and args[0].startswith("-"):
-       option = args[0]
-       SetCmdOption(option[1:], True)
-       options.append(option)
-       args = args[1:]
+        option = args[0]
+        SetCmdOption(option[1:], True)
+        options.append(option)
+        args = args[1:]
 
     vappsInstance = initializeVAppInventory()
-    
+
     (desc, validOptions, targetType, defaultArgs) = Commands[cmd]
     argsMap = dict()
     anyArgOk = False
@@ -184,17 +186,17 @@ def main():
         for key in defaultArgs:
             (value, desc) = defaultArgs[key]
             argsMap[key] = value
-    
+
     for key in options:
-        if not key in validOptions:
-            print "Error: Invalid option:", key
+        if key not in validOptions:
+            print("Error: Invalid option:", key)
             usageCmd(cmd)
             return
-    
+
     target = ""
     if targetType in ["required", "multi"]:
         if len(args) == 0:
-            print "Error: No target specified"
+            print("Error: No target specified")
             usageCmd(cmd)
             return
         target = args[0]
@@ -202,92 +204,97 @@ def main():
     elif targetType == "optional":
         if len(args) > 0:
             target = args[0]
-            args = args[1:] 
-   
+            args = args[1:]
+
     if targetType == "multi":
         target = [target] + args
     else:
         for arg in args:
             s = map(strip, arg.split('='))
             if len(s) != 2 or (not anyArgOk and not s[0] in argsMap):
-                print "Error: Invalid argument:", arg
+                print("Error: Invalid argument:", arg)
                 usageCmd(cmd)
                 return
             argsMap[s[0]] = unquote(s[1])
-    
+
     if cmd == "init":
-        if vappsInstance != None:
-            print "Error: Workspace already initialized at:", locateVAppsDirectory()
+        if vappsInstance is not None:
+            print("Error: Workspace already initialized at:",
+                  locateVAppsDirectory())
             return
-        
+
         createNewWorkspace()
         return
-    
-    if vappsInstance == None:
-        print "Error: No workspace initialized. (Use 'init' command)"
+
+    if vappsInstance is None:
+        print("Error: No workspace initialized. (Use 'init' command)")
         return
- 
+
     if targetType == "multi":
-        target  = map(normalizeName, target)
+        target = map(normalizeName, target)
     else:
         target = normalizeName(target)
-    eval(cmd.replace('-','') + "Command")(target, argsMap)
+    eval(cmd.replace('-', '') + "Command")(target, argsMap)
+
 
 def linkvmCommand(target, args):
     vmxFile = args["vmx"]
     vapps = getVAppsInstance()
-    
+
     vmDir = os.path.join(vapps.dir, target)
     if os.path.exists(vmDir) or target in vapps.entities:
-        print "Error: target already exists"
+        print("Error: target already exists")
         return
-    
+
     if not os.path.isfile(vmxFile):
-        print "Error:", vmxFile, "is not a valid file"
+        print("Error:", vmxFile, "is not a valid file")
         return
-    
+
     os.mkdir(vmDir)
     createVmInternal(vmDir, target, vmxFile)
-    
+
+
 def createvmCommand(target, args):
     vapps = getVAppsInstance()
     vmrun = getVmrunInstance()
-    
+
     memSize = args["memory"]
     diskSize = args["disk"]
-    
+
     vmDir = os.path.join(vapps.dir, target)
     if os.path.exists(vmDir) or target in vapps.entities:
-        print "Error: target already exists"
+        print("Error: target already exists")
         return
-    
+
     vmxFile = os.path.join(vmDir, "vmx", "vm.vmx")
     vmrun.createVm(vmxFile, target, memSize, diskSize)
-    
+
     createVmInternal(vmDir, target, vmxFile)
+
 
 def createVmInternal(vmDir, name, vmxFile):
     cfgFile = os.path.join(vmDir, VM_CFG_NAME)
     vmEntity = VmEntity(name, cfgFile)
     vmEntity.vmxFile = os.path.realpath(vmxFile)
     vmEntity.update()
-    print "Created VM entity", name, "successfully"
-        
+    print("Created VM entity", name, "successfully")
+
+
 def createvappCommand(target, args):
     vapps = getVAppsInstance()
     vmDir = os.path.join(vapps.dir, target)
     if os.path.exists(vmDir) or target in vapps.entities:
-        print "Error: target already exists"
+        print("Error: target already exists")
         return
-    
+
     dir = os.path.join(vapps.dir, target)
     os.mkdir(dir)
     cfgFile = os.path.join(vapps.dir, target, VAPP_CFG_NAME)
     vappEntity = VAppEntity(target, cfgFile)
     vappEntity.update()
 
+
 def editCommand(target, args):
-    vapps = getVAppsInstance()
     entity = lookupEntity(target)
     newName = args["name"]
     newParent = args["parent"]
@@ -298,221 +305,239 @@ def editCommand(target, args):
     stopWait = args["stopWait"]
     appUrl = args["appUrl"]
     transport = args["transport"]
-    
-    if len(startOrder + waitForTools + startWait + stopWait) > 0 and entity.parent == None:
-        print "Error: Cannot configure link information on a root entity"
+
+    if len(startOrder + waitForTools + startWait + stopWait) > 0 and \
+       entity.parent is None:
+        print("Error: Cannot configure link information on a root entity")
         return
-    
-    def linkSetter(arg, defValue, asBool=False):        
-        if len(arg) == 0: return defValue
+
+    def linkSetter(arg, defValue, asBool=False):
+        if len(arg) == 0:
+            return defValue
         try:
-            if asBool:                 
+            if asBool:
                 return StrToBool(arg)
             return int(arg)
         except:
-            print "Error: Invalid value:", arg
+            print("Error: Invalid value:", arg)
             sys.exit(1)
-            
+
     def updateString(newValue, curValue):
-        if newValue == "*": 
-            return curValue 
+        if newValue == "*":
+            return curValue
         else:
             return newValue
-            
-    if entity.parent != None:
+
+    if entity.parent is not None:
         link = entity.link
-        link.startOrder   = linkSetter(startOrder,   link.startOrder)
-        link.startWait    = linkSetter(startWait,    link.startWait)
-        link.stopWait     = linkSetter(stopWait,     link.stopWait)
+        link.startOrder = linkSetter(startOrder, link.startOrder)
+        link.startWait = linkSetter(startWait, link.startWait)
+        link.stopWait = linkSetter(stopWait, link.stopWait)
         link.waitForTools = linkSetter(waitForTools, link.waitForTools, True)
 
-    if newParent != "*": updateParent(entity, newParent)
-    
+    if newParent != "*":
+        updateParent(entity, newParent)
+
     entity.tag = updateString(tag, entity.tag)
     entity.appUrl = updateString(appUrl, entity.appUrl)
-    entity.transport = updateString(transport, " ".join(entity.transport)).split()
+    entity.transport = updateString(transport,
+                                    " ".join(entity.transport)).split()
 
-    entity.update()    
-    if newName != "*": rename(entity, newName)
-    
+    entity.update()
+    if newName != "*":
+        rename(entity, newName)
+
 
 def updateParent(entity, parentName):
     if len(parentName) == 0:
         return
-    
+
     if parentName == '*':
         entity.unsetParent()
         return
-    
+
     parent = lookupEntity(parentName)
-    
+
     childSet = entity.getAllLinkNames()
     if parentName in childSet:
-        print "Error: Invalid parent"
+        print("Error: Invalid parent")
         return
-    
+
     if parent.isVM():
-        print "Error: parent is a VM"
+        print("Error: parent is a VM")
         return
-    
+
     entity.setParent(parent)
+
 
 def rename(entity, newName):
     if len(newName) == 0:
         return
-    
+
     vapps = getVAppsInstance()
     newName = normalizeName(newName)
-    
+
     if newName in vapps.entities:
-        print "Error: Entity with name", newName, "already exists"
-        return           
-    
+        print("Error: Entity with name", newName, "already exists")
+        return
+
     # Rename directory
     dir = os.path.join(vapps.dir, entity.name)
     newDir = os.path.join(vapps.dir, newName)
     os.rename(dir, newDir)
-    
-    # Update child configs to link to the new parent    
-    for c in entity.children: 
-        c.link.name = newName        
+
+    # Update child configs to link to the new parent
+    for c in entity.children:
+        c.link.name = newName
         c.update()
+
 
 def deleteCommand(targets, args):
     quickMode = GetCmdOption("q", False)
     recursive = GetCmdOption("r", False)
-    
+
     vapps = getVAppsInstance()
     if not quickMode:
         vapps.initPowerState()
-        
-    def removeEntity(entity):        
+
+    def removeEntity(entity):
         if entity.state == "Powered On":
-            print "Error: entity is running"
+            print("Error: entity is running")
             sys.exit(1)
-        
+
         for c in entity.children:
             if recursive:
                 removeEntity(c)
             else:
                 c.unsetParent()
-                c.update()    
-        print "Deleted", entity.name        
-        entity.removeDir()            
-            
-    for target in targets:        
+                c.update()
+        print("Deleted", entity.name)
+        entity.removeDir()
+
+    for target in targets:
         entity = lookupEntity(target)
         removeEntity(entity)
-                                                    
+
+
 def listCommand(target, args):
     quickMode = GetCmdOption("q", False)
-    
+
     if target == "":
         listWorkspace(quickMode)
     else:
         listEntity(target, quickMode)
 
+
 def listWorkspace(quickMode):
-    vapps = getVAppsInstance()     
-    
-    def showEntity(entity, indent = 0):
+    vapps = getVAppsInstance()
+
+    def showEntity(entity, indent=0):
         spc = "  " * indent
         type = "vApp"
         justify = 30 - len(spc) - len(entity.name)
         spc2 = " " * justify
-        if entity.isVM(): type = "VM"
+        if entity.isVM():
+            type = "VM"
         if quickMode:
-            print "%s %-5s" % \
-                  (spc + entity.name + spc2, type)
+            print("%s %-5s" %
+                  (spc + entity.name + spc2, type))
         else:
-            appUrl  = entity.getExpandedAppUrl()            
-            print "%s %-5s %-14s %-15s %s" % \
-                  (spc + entity.name + spc2, type, entity.state, entity.ip, appUrl)
-        
+            appUrl = entity.getExpandedAppUrl()
+            print("%s %-5s %-14s %-15s %s" %
+                  (spc + entity.name + spc2, type,
+                   entity.state, entity.ip, appUrl))
+
         for child in sorted(entity.children):
             showEntity(child, indent + 1)
-        
+
     if len(vapps.roots) == 0:
-        print "Empty workspace"
+        print("Empty workspace")
         return
-        
-    if quickMode:    
-        print "Name                           Type"
-        print "-----------------------------------"        
+
+    if quickMode:
+        print("Name                           Type")
+        print("-----------------------------------")
     else:
-        print "Name                           Type   State         IP              AppUrl"
-        print "--------------------------------------------------------------------------"        
+        print("Name                           Type  ",
+              "State         IP              AppUrl")
+        print("---------------------------------------" +
+              "-----------------------------------")
         vapps.initPowerState()
-        
-    l = sorted(vapps.roots, key= lambda e: e.name)        
+
+    l = sorted(vapps.roots, key=lambda e: e.name)
     for e in l:
         showEntity(e)
 
+
 def listEntity(target, quickMode):
     e = lookupEntity(target)
-    print "Name.......:", e.name    
+    print("Name.......:", e.name)
     if e.isVM():
-        print "Type.......: VM"
-        print "VMX........:", e.vmxFile
+        print("Type.......: VM")
+        print("VMX........:", e.vmxFile)
     else:
-        print "Type.......: vApp"
+        print("Type.......: vApp")
     if len(e.tag) > 0:
-        print "Tag........:", e.tag
+        print("Tag........:", e.tag)
     if len(e.appUrl) > 0:
-       print "AppUrl.....:", e.appUrl
-       
-    if e.parent != None:
-        print "Parent.....:", e.parent.name
-        
+        print("AppUrl.....:", e.appUrl)
+
+    if e.parent is not None:
+        print("Parent.....:", e.parent.name)
+
     if e.isVM():
-       print "Transport..:", " ".join(e.transport)       
-    
-    deployConfig = e.getDeployParams()           
-    if e.parent == None:
-       print "IP Policy..:", deployConfig.allocationPolicy               
-               
+        print("Transport..:", " ".join(e.transport))
+
+    deployConfig = e.getDeployParams()
+    if e.parent is None:
+        print("IP Policy..:", deployConfig.allocationPolicy)
+
     if len(e.children) > 0:
         print
-        print "Children: "
-        print "  Name             Order   StartWait   WaitForTools   StopWait"
-        print "  ------------------------------------------------------------"        
-        for c in sorted(e.children, key= lambda x: x.link.startOrder):
+        print("Children: ")
+        print("  Name             Order   StartWait   WaitForTools   StopWait")
+        print("  ------------------------------------------------------------")
+        for c in sorted(e.children, key=lambda x: x.link.startOrder):
             l = c.link
-            print "  %-15s %5d    %5d          %-5s       %5d" % \
-                   (c.name, l.startOrder, l.startWait, StrToBool(l.waitForTools), l.stopWait)
-            
-    if len(e.properties) > 0:
-        print
-        print "Property Definitions:"            
-        print "  Key                       Type            Value                      UserConfig"
-        print "  -------------------------------------------------------------------------------"
-        for p in e.properties:
-            print "  %-25s %-15s %-25s  %-5s" % (p.key, p.type, p.value, p.userConfig)
-    
-    if e.parent == None and not deployConfig.empty():
-        if len(deployConfig.userItems()) > 0:
-            print
-            print "Property Settings:" 
-            print "  Key                       Value"
-            print "  ------------------------------------------------"            
-            for key, value in deployConfig.userItems():
-                print "  %-25s %-20s" % (key,  value)
-            print
-    
-    props = {}
-    if e.isVM():        
-        props = e.computeOvfEnvProps().items()
-        if len(props) > 0:        
-            print
-            print "OVF environment:"            
-            print "  Key                       Value"
-            print "  ------------------------------------------------"            
-            for key, value in props:                                                  
-                print "  %-25s %-20s" % (key, value)        
+            print("  %-15s %5d    %5d          %-5s       %5d" %
+                  (c.name, l.startOrder, l.startWait,
+                   StrToBool(l.waitForTools), l.stopWait))
 
-    expandedAppUrl = e.getExpandedAppUrl(props)
-    if len(expandedAppUrl) > 0:
-        print "Access at..:", expandedAppUrl
+    if len(e.properties) > 0:
+        print("")
+        print("Property Definitions:")
+        print("  Key                       Type            " +
+              "Value                      UserConfig")
+        print("  -------------------------------------------" +
+              "------------------------------------")
+        for p in e.properties:
+            print("  %-25s %-15s %-25s  %-5s" %
+                  (p.key, p.type, p.value, p.userConfig))
+
+    if e.parent is None and not deployConfig.empty():
+        if len(deployConfig.userItems()) > 0:
+            print("")
+            print("Property Settings:")
+            print("  Key                       Value")
+            print("  ------------------------------------------------")
+            for key, value in deployConfig.userItems():
+                print("  %-25s %-20s" % (key,  value))
+            print("")
+
+    if e.isVM():
+        props = e.computeOvfEnvProps()
+        if len(props) > 0:
+            print("")
+            print("OVF environment:")
+            print("  Key                       Value")
+            print("  ------------------------------------------------")
+            for key, value in props.items():
+                print("  %-25s %-20s" % (key, value))
+
+        expandedAppUrl = e.getExpandedAppUrl(props)
+        if len(expandedAppUrl) > 0:
+            print("Access at..:", expandedAppUrl)
+
 
 def defpropertyCommand(target, args):
     e = lookupEntity(target)
@@ -520,68 +545,80 @@ def defpropertyCommand(target, args):
     type = args["type"]
     value = args["value"]
     userConfig = args["userConfigurable"]
-    remove = GetCmdOption("d", False) # Delete
-    
+    remove = GetCmdOption("d", False)  # Delete
+
     if len(key) == 0:
-        print "Error: No key is specified"
+        print("Error: No key is specified")
         return
-    
+
     props = e.properties
     propMap = {}
-    for p in props: propMap[p.key] = p
-    
+    for p in props:
+        propMap[p.key] = p
+
     if remove:
-        if not key in propMap:
-            print "Error: Property does not exists:", key
+        if key not in propMap:
+            print("Error: Property does not exists:", key)
             return
         props.remove(propMap[key])
         e.update()
         return
 
-    if not key in propMap:
+    if key not in propMap:
         if len(type) == 0:
-            print "Error: No type is specified"
+            print("Error: No type is specified")
             return
-        
+
         props.append(Property(key, type, value, StrToBool(userConfig, True)))
     else:
         p = propMap[key]
-        if len(value) > 0: p.value = value
-        if len(type) > 0 : p.type = type
-        if len(userConfig) > 0: p.userConfig = StrToBool(userConfig)
+        if len(value) > 0:
+            p.value = value
+        if len(type) > 0:
+            p.type = type
+        if len(userConfig) > 0:
+            p.userConfig = StrToBool(userConfig)
     e.update()
+
 
 def setpropertyCommand(target, args):
     e = lookupEntity(target)
-    
-    if e.parent != None:
-        print "Error: Deployment specific parameters can only be specified on a root vApp/VM"
+
+    if e.parent is not None:
+        print("Error: Deployment specific parameters can",
+              "only be specified on a root vApp/VM")
         return
-    
+
     deployParams = e.getDeployParams()
-    
+
     useDhcp = GetCmdOption("dhcp", False)
     useFixed = GetCmdOption("fixed", False)
     useTransient = GetCmdOption("transient", False)
-    if useDhcp and useFixed or useDhcp and useTransient or useFixed and useTransient:
-       print "Error: Only one IP allocation policy can be specified"
-       return
-    
-    if useDhcp:      deployParams.allocationPolicy = "dhcp"
-    if useFixed:     deployParams.allocationPolicy = "fixed"
-    if useTransient: deployParams.allocationPolicy = "transient"
-    
-    for key,value in args.items():        
+    if (useDhcp and useFixed) or \
+       (useDhcp and useTransient) or \
+       (useFixed and useTransient):
+        print("Error: Only one IP allocation policy can be specified")
+        return
+
+    if useDhcp:
+        deployParams.allocationPolicy = "dhcp"
+    if useFixed:
+        deployParams.allocationPolicy = "fixed"
+    if useTransient:
+        deployParams.allocationPolicy = "transient"
+
+    for key, value in args.items():
         if not deployParams.isValidKey(key):
-            print "Error: Invalid key", key
+            print("Error: Invalid key", key)
             return
         if not deployParams.isUserConfigurableKey(key):
-            print "Error: key is not user configurable"
+            print("Error: key is not user configurable")
             return
-            
+
         deployParams.setParam(key, value)
-        
+
     deployParams.writeToFile()
+
 
 def startCommand(target, args):
     e = lookupEntity(target)
@@ -589,20 +626,23 @@ def startCommand(target, args):
 
     expandedAppUrl = e.getExpandedAppUrl()
     if len(expandedAppUrl) > 0:
-        print "Access at:", expandedAppUrl
+        print("Access at:", expandedAppUrl)
+
 
 def stopCommand(target, args):
     e = lookupEntity(target)
     e.stopAction()
 
+
 def shutdownCommand(target, args):
     e = lookupEntity(target)
     e.shutdownAction()
-    
+
+
 def fsckCommand(target, args):
     vapps = getVAppsInstance()
     doClean = GetCmdOption("d", False)
-    
+
     # List all files and directories
     allList = OsFileList(vapps.dir)
 
@@ -611,74 +651,77 @@ def fsckCommand(target, args):
     usedList.append((vapps.cfgFile, False))
     for e in vapps.entities.values():
         e.getUsedFiles(usedList)
-    
+
     usedSet = set()
     for name, isDir in usedList:
         usedSet.add(name)
-        
+
     removeList = filter(lambda s: s[0] not in usedSet, allList)
     if len(removeList) == 0:
-        print "No stray files in workspace"
+        print("No stray files in workspace")
         return
-    
+
     if doClean:
         OsFileListRemove(removeList)
     else:
         prefixLen = len(os.path.realpath(vapps.dir))
-        print "Stray files and directories: (use -d to delete)"
-        for name, isDir in removeList:    
-            if isDir:        
-               print "", name[prefixLen+1:] + '/'
+        print("Stray files and directories: (use -d to delete)")
+        for name, isDir in removeList:
+            if isDir:
+                print("", name[prefixLen + 1:] + '/')
             else:
-               print "", name[prefixLen+1:] 
+                print("", name[prefixLen + 1:])
+
 
 def workspaceCommand(target, args):
     quickMode = GetCmdOption("q", False)
-            
+
     vapps = getVAppsInstance()
-    
-    keys = ["netmask", "gateway", "hostPrefix", "dns", "searchPath", 
-             "httpProxy", "range", "domainName"]
-        
+
+    keys = ["netmask", "gateway", "hostPrefix", "dns", "searchPath",
+            "httpProxy", "range", "domainName"]
+
     updated = False
-    
-    print "IP Pool settings:"
+
+    print("IP Pool settings:")
     for key in sorted(keys):
         val = args[key]
-        if len(val) > 0:       
+        if len(val) > 0:
             vapps.ipPool.updateChildTextNode(key, val)
             updated = True
-        
+
         (val, found) = vapps.ipPool.lookupChildTextNode(key)
-        print " ", key, "=",val
-    
-    
-    if not quickMode:    
+        print(" ", key, "=", val)
+
+    if not quickMode:
         vapps.initPowerState()
         if args["range"] != "":
             vapps.ipRange = CreateIpPool(args["range"])
-        
+
         if len(vapps.ipRange.ipSet) > 0:
-            print "Free IP addreses"
-            print " ", ", ".join(sorted(vapps.ipRange.ipSet))
+            print("Free IP addreses")
+            print(" ", ", ".join(sorted(vapps.ipRange.ipSet)))
         else:
-            print "No unused IP addresses in IP pool"
-        
+            print("No unused IP addresses in IP pool")
+
     if updated:
         vapps.updateWorkspaceConfig()
-        
+
+
 def normalizeName(name):
     if name.endswith('/') or name.endswith('\\'):
         return name[:-1]
     return name
 
+
 def lookupEntity(name):
     vapps = getVAppsInstance()
     name = normalizeName(name)
-    if not name in vapps.entities:
-        print "Error:", name, "does not exits"
+    if name not in vapps.entities:
+        print("Error:", name, "does not exits")
         sys.exit(1)
     return vapps.entities[name]
+
 
 def usage():
     list = [cmd for cmd in Commands]
@@ -688,21 +731,22 @@ def usage():
     spaces = maxLen * " "
     for cmd in list:
         (desc, options, target, props) = Commands[cmd]
-        print cmd, spaces[0:maxLen - len(cmd)], desc
-        
+        print(cmd, spaces[0:maxLen - len(cmd)], desc)
+
+
 def usageCmd(cmd):
-    
+
     def initAlign(list):
         maxLen = reduce(max, map(len, list), 0) + 6
         return maxLen * " "
-    
+
     def align(s, spaces):
         return s + spaces[:-len(s)]
-    
-    if not cmd in Commands:
-        print "Unknown command:", cmd
+
+    if cmd not in Commands:
+        print("Unknown command:", cmd)
         return
-    
+
     (desc, options, target, args) = Commands[cmd]
     syntax = ""
     if len(options) > 0:
@@ -718,27 +762,29 @@ def usageCmd(cmd):
             syntax += "[<target>]"
     if len(args) > 0:
         syntax += "[key=value args]*"
-    
-    print "Command:     ", cmd, syntax
-    print "Description: ", desc
+
+    print("Command:     ", cmd, syntax)
+    print("Description: ", desc)
     if len(options) > 0:
         spaces = initAlign(options.keys())
-        print "Options:"
+        print("Options:")
         for x in sorted(options):
-            print "", align(x, spaces), options[x]
-    
+            print("", align(x, spaces), options[x])
+
     if len(args) > 0:
         spaces = initAlign(args)
-        print "Arguments:"
+        print("Arguments:")
         if "*" in args:
-            print "  The properties with the specified key is set to the specified value"
+            print("  The properties with the specified key is set",
+                  "to the specified value")
             return
         for x in sorted(args):
             (value, desc) = args[x]
             if value != "" and value != "*":
-                print "", align(x, spaces), desc, "(default value:", value + ")"
+                print("", align(x, spaces), desc,
+                      "(default value:", value + ")")
             else:
-                print "", align(x, spaces), desc
+                print("", align(x, spaces), desc)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()

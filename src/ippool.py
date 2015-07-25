@@ -12,55 +12,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re                                                                        
-import sys
+from __future__ import division, absolute_import
+from __future__ import print_function, unicode_literals
+
+import re
+
 
 class IpPool:
-    
-    def __init__(self, ipSet):   
+
+    def __init__(self, ipSet):
         self.ipSet = ipSet
         self.reserved = []
-        
+
     def allocate(self):
         if len(self.ipSet) == 0:
             return None
         return self.ipSet.pop()
-     
+
     def reserve(self, reserveSet):
         self.reserved += reserveSet.union(self.ipSet)
-        self.ipSet = self.ipSet.difference(reserveSet) 
-        
+        self.ipSet = self.ipSet.difference(reserveSet)
+
     def unreserve(self, ip):
         if ip in self.reserved:
             self.ipSet.add(ip)
             self.reserved.remove(ip)
-                                                      
-def CreateIpPool(ipPoolSpec):      
-    def nextIp(ipIn): 
-          ipOut = list(ipIn)
-          ipOut[3] = ipOut[3] + 1 
-          pos = 3
-          while pos >= 0 and ipOut[pos] > 255:
-             ipOut[pos] = 0
-             ipOut[pos-1] = ip[pos-1] + 1
-             pos = pos - 1
-          if ipOut[0] > 255:
-              return ipIn
-          return ipOut   
-          
+
+
+def CreateIpPool(ipPoolSpec):
+    def nextIp(ipIn):
+        ipOut = list(ipIn)
+        ipOut[3] = ipOut[3] + 1
+        pos = 3
+        while pos >= 0 and ipOut[pos] > 255:
+            ipOut[pos] = 0
+            ipOut[pos-1] = ip[pos-1] + 1
+            pos = pos - 1
+        if ipOut[0] > 255:
+            return ipIn
+        return ipOut
+
     if len(ipPoolSpec) == 0:
         return IpPool(set())
-        
+
     patt = re.compile("^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})#(\d{1,3})$")
     m = patt.match(ipPoolSpec)
-    if m == None:
+    if m is None:
         return None
-                     
-    ip = [int(m.group(i)) for i in range(1,5)]
-    count = int(m.group(5))    
+
+    ip = [int(m.group(i)) for i in range(1, 5)]
+    count = int(m.group(5))
     ipSet = set()
     for i in range(0, count):
-        ipSet.add(".".join(map(str,ip))) 
+        ipSet.add(".".join(map(str, ip)))
         ip = nextIp(ip)
-         
+
     return IpPool(ipSet)
