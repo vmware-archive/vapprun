@@ -12,36 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""commands module defines where to find external commands used by vapprun"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
 import sys
 
-extra_path = []
+_EXTRA_PATH = []
 
 if sys.platform == "darwin":
-    extra_path = ["/Library/Application Support/VMware Fusion",
-                  "/Applications/VMware Fusion.app/Contents/Library"]
+    _EXTRA_PATH = ["/Library/Application Support/VMware Fusion",
+                   "/Applications/VMware Fusion.app/Contents/Library"]
 elif sys.platform == "win32":
-    extra_path = [r"C:\Program Files (x86)\VMware\VMware VIX",
-                  r"C:\Program Files (x86)\VMware\VMware Workstation",
-                  r"C:\Program Files\VMware\VMware VIX",
-                  r"C:\Program Files\VMware\VMware Workstation"]
+    _EXTRA_PATH = [r"C:\Program Files (x86)\VMware\VMware VIX",
+                   r"C:\Program Files (x86)\VMware\VMware Workstation",
+                   r"C:\Program Files\VMware\VMware VIX",
+                   r"C:\Program Files\VMware\VMware Workstation"]
 
-for path in extra_path:
-    if os.path.exists(path):
-        os.environ["PATH"] = os.pathsep.join([os.environ.get("PATH", ""),
-                                              path])
+
+def _setup_path():
+    """Add VMware product helpers to the executable search path"""
+    for path in _EXTRA_PATH:
+        if os.path.exists(path):
+            os.environ["PATH"] = os.pathsep.join([os.environ.get("PATH", ""),
+                                                  path])
 
 
 def _which(program):
-    import os
-
+    """Finds executable"""
     def is_exe(fpath):
+        """Test if file is executable"""
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    fpath, fname = os.path.split(program)
+    fpath, _ = os.path.split(program)
     if fpath:
         if is_exe(program):
             return program
@@ -54,7 +59,8 @@ def _which(program):
 
     return None
 
+_setup_path()
 
-mkisofsCmd = _which("mkisofs")
-vmrunCmd = _which("vmrun")
-vdiskmanagerCmd = _which("vmware-vdiskmanager")
+MKISOFS_CMD = _which("mkisofs")
+VMRUN_CMD = _which("vmrun")
+VDISKMANAGER_CMD = _which("vmware-vdiskmanager")

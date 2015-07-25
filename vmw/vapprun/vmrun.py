@@ -22,7 +22,7 @@ import sys
 
 from pkg_resources import ResourceManager, get_provider
 
-from .commands import vdiskmanagerCmd, vmrunCmd
+from .commands import VDISKMANAGER_CMD, VMRUN_CMD
 from .utils import (CreateRelPath, GetCmdOption, OsMkdirs, OsTryRemove,
                     OsTryRmdir, WriteTxtFile)
 
@@ -42,17 +42,16 @@ def initializeVmrunInstance():
 
 
 def getVmrunInstance():
-    global vmrunInstance
     return vmrunInstance
 
 
-class VmrunCommand:
+class VmrunCommand(object):
 
     def powerOn(self, vmxPath):
         guiOption = "nogui"
         if GetCmdOption("gui", False):
             guiOption = "gui"
-        cmd = [vmrunCmd, "start", vmxPath, guiOption]
+        cmd = [VMRUN_CMD, "start", vmxPath, guiOption]
         self.subprocessCall(cmd)
 
     def powerOff(self, vmxPath, hard=False):
@@ -60,10 +59,11 @@ class VmrunCommand:
             action = "hard"
         else:
             action = "soft"
-        cmd = [vmrunCmd, "stop", vmxPath, action]
+        cmd = [VMRUN_CMD, "stop", vmxPath, action]
         self.subprocessCall(cmd)
 
-    def subprocessCall(self, cmd, exitOnFail=True):
+    @classmethod
+    def subprocessCall(cls, cmd, exitOnFail=True):
         try:
             # On Windows, inhibit the console window that
             # pops up as a result of doing this.
@@ -74,7 +74,7 @@ class VmrunCommand:
                 opts = {}
             subprocess.call(cmd, **opts)
             return True
-        except:
+        except Exception:
             print("Error: Failed to execute ", cmd[0], ". Is it in your path?")
             if exitOnFail:
                 sys.exit(1)
@@ -82,8 +82,9 @@ class VmrunCommand:
 
         return True
 
-    def readRuntimeVariable(self, vmxPath, name):
-        cmd = [vmrunCmd,
+    @classmethod
+    def readRuntimeVariable(cls, vmxPath, name):
+        cmd = [VMRUN_CMD,
                "readVariable",
                vmxPath,
                "runtimeConfig",
@@ -128,22 +129,22 @@ class VmrunCommand:
             return ("Powered On", out)
 
     def createVm(self, vmxFile, name, memSize, diskSize):
-        dir = os.path.dirname(vmxFile)
-        cleanupList = OsMkdirs(dir)
+        dirname = os.path.dirname(vmxFile)
+        cleanupList = OsMkdirs(dirname)
 
-        diskFile = os.path.join(dir, "disk.vmdk")
+        diskFile = os.path.join(dirname, "disk.vmdk")
         success = self.createSparseVmdk(diskFile, diskSize)
         if not success:
             cleanupList.reverse()
-            for dir in cleanupList:
-                OsTryRmdir(dir)
+            for d in cleanupList:
+                OsTryRmdir(d)
                 sys.exit(1)
 
         self.createVmxFile(vmxFile, name, memSize, diskFile)
 
     def createSparseVmdk(self, filename, diskSize):
         OsTryRemove(filename)
-        cmd = [vdiskmanagerCmd,
+        cmd = [VDISKMANAGER_CMD,
                "-c",
                "-t", "0",              # monoSparse
                "-s", diskSize + "GB",  # capacity
@@ -152,7 +153,8 @@ class VmrunCommand:
 
         return self.subprocessCall(cmd, exitOnFail=False)
 
-    def getTemplate(self, fname):
+    @classmethod
+    def getTemplate(cls, fname):
         current_module = sys.modules[__name__]
         provider = get_provider(current_module.__package__)
         manager = ResourceManager()
@@ -181,7 +183,8 @@ class VmrunCommand:
         with open(vmxPath, "w") as vmxFile:
             print(vmx, file=vmxFile)
 
-    def vmxEscape(self, str):
+    @classmethod
+    def vmxEscape(cls, s):
         escaped = ['#', '|', '\\', '"']
 
         def escape(c):
@@ -190,21 +193,24 @@ class VmrunCommand:
             else:
                 return c
 
-        return "".join(map(escape, str))
+        return "".join([escape(c) for c in s])
 
-    def splitVmxEntry(self, line):
+    @classmethod
+    def splitVmxEntry(cls, line):
         s = line.split("=")
         if len(s) < 2:
             return ("", "")
         return (s[0].strip().lower(), s[1].strip().lower())
 
-    def getBoolVmxKey(self, vmxDict, key, defval=False):
+    @classmethod
+    def getBoolVmxKey(cls, vmxDict, key, defval=False):
         if key not in vmxDict:
             return defval
         val = vmxDict[key]
         return val == '"true"' or val == "true"
 
-    def getVmxKey(self, vmxDict, key, defval=""):
+    @classmethod
+    def getVmxKey(cls, vmxDict, key, defval=""):
         if key not in vmxDict:
             return defval
         return vmxDict[key]
@@ -227,7 +233,7 @@ class VmrunCommand:
                    ["scsi" + str(x) + ":" + str(y)
                     for x in range(0, 8) for y in range(0, 8)])
 
-        devices = filter(lambda x: self.isCdromDevice(vmxDict, x), devices)
+        devices = [d for d in devices if self.isCdromDevice(vmxDict, d)]
 
         candidate = None
         for dev in devices:
@@ -265,8 +271,7 @@ class VmrunCommand:
         return deviceType == '"cdrom-image"' and filename == '"ovf-env.iso"'
 
     def patchVmxFile(self, vmxFile, ovfEnv, transport):
-        (dir, basename) = os.path.split(vmxFile)
-        (name, ext) = os.path.splitext(basename)
+        (dirname, _) = os.path.split(vmxFile)
 
         transport = [s.lower() for s in transport]
         doIso = "iso" in transport
@@ -280,7 +285,7 @@ class VmrunCommand:
 
         # Generate ISO
         if doIso:
-            ovfEnvIsoFile = os.path.join(dir, "ovf-env.iso")
+            ovfEnvIsoFile = os.path.join(dirname, "ovf-env.iso")
             ovfEnv.create_iso(ovfEnvIsoFile)
 
             # Detect CD ROM device
@@ -291,7 +296,7 @@ class VmrunCommand:
                 sys.exit(-1)
 
             # Save ovf-env to be nice
-            ovfEnvFile = os.path.join(dir, "ovf-env.xml")
+            ovfEnvFile = os.path.join(dirname, "ovf-env.xml")
             WriteTxtFile(ovfEnvFile, ovfEnv.create_doc())
 
             dropKeys.add(device + ".filename")
@@ -315,13 +320,10 @@ guestinfo.ovfEnv = "%s"
 
         self.rewriteVmxFile(vmxFile, dropKeys, endBlock)
 
-    def disconnectOvfIsoInVmx(self, vmxFile, transport):
-        (dir, basename) = os.path.split(vmxFile)
-        (name, ext) = os.path.splitext(basename)
-
+    def disconnectOvfIsoInVmx(self, vmxFile, transports):
         # No need to unmount if we didn't mount it
-        transport = map(string.lower, transport)
-        doIso = "iso" in transport
+        transports = [string.lower(t) for t in transports]
+        doIso = "iso" in transports
         if not doIso:
             return
 
@@ -342,7 +344,7 @@ guestinfo.ovfEnv = "%s"
         vmxOut = open(newVmxFile, "w")
         for line in vmxIn:
             line = line[:-1]
-            key, value = self.splitVmxEntry(line)
+            key, _ = self.splitVmxEntry(line)
             if key in dropKeys:
                 continue
             print(line, file=vmxOut)

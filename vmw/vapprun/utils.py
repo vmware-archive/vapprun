@@ -47,17 +47,17 @@ def BoolToStr(b):
         return "false"
 
 
-def OsTryRemove(file):
+def OsTryRemove(fname):
     try:
-        os.remove(file)
-    except:
+        os.remove(fname)
+    except Exception:
         pass
 
 
-def OsTryRmdir(dir):
+def OsTryRmdir(dirname):
     try:
-        os.rmdir(dir)
-    except:
+        os.rmdir(dirname)
+    except Exception:
         pass
 
 
@@ -78,38 +78,38 @@ def OsMkdirs(newdir):
 
 
 # List of tuples (name, isDir)
-def OsFileList(dir):
-    list = []
-    for root, dirs, files in os.walk(top=dir, topdown=False, onerror=None):
+def OsFileList(dirname):
+    l = []
+    for root, _, files in os.walk(top=dirname, topdown=False, onerror=None):
         for f in files:
             path = os.path.realpath(os.path.join(root, f))
-            list.append((path, False))
-        list.append((os.path.realpath(root), True))
-    return list
+            l.append((path, False))
+        l.append((os.path.realpath(root), True))
+    return l
 
 
-def OsFileListRemove(list):
-    for name, isDir in list:
+def OsFileListRemove(l):
+    for name, isDir in l:
         if isDir:
             OsTryRmdir(name)
         else:
             OsTryRemove(name)
 
 
-def CreateRelPath(baseDir, dir):
+def CreateRelPath(baseDir, dirname):
     d1 = os.path.realpath(baseDir)
-    d2 = os.path.realpath(dir)
+    d2 = os.path.realpath(dirname)
     if os.path.commonprefix([d1, d2]) == d1 and d2 != "":
-        relDir = dir[len(d1):]
-        while(len(relDir) > 0 and relDir[0] in "\//"):
+        relDir = dirname[len(d1):]
+        while len(relDir) > 0 and relDir[0] in r"\//":
             relDir = relDir[1:]
         return relDir
     return d2
 
 
-def WriteTxtFile(file, content):
-    OsTryRemove(file)
-    with open(file, "wt") as f:
+def WriteTxtFile(fname, content):
+    OsTryRemove(fname)
+    with open(fname, "wt") as f:
         print(content, file=f)
 
 
@@ -126,19 +126,20 @@ class MyConfigParser(ConfigParser):
     def getint(self, section, key, default=0):
         try:
             return ConfigParser.getint(self, section, key)
-        except:
+        except Exception:
             return default
 
 
-class XmlNode:
-    def __init__(self, tag, attrs={}, value=None, children=[]):
+class XmlNode(object):
+
+    def __init__(self, tag, attrs=None, value=None, children=None):
         self.tag = tag
-        self.attrs = attrs
+        self.attrs = attrs or {}
         self.value = value
-        self.children = children
+        self.children = children or []
 
     def list(self, tag):
-        return filter(lambda p: p.tag == tag, self.children)
+        return [c for c in self.children if c.tag == tag]
 
     def lookup(self, tag):
         for c in self.children:
@@ -198,13 +199,13 @@ class XmlNode:
     def getAttrInt(self, key, value):
         try:
             return int(self.getAttr(key, value))
-        except:
+        except Exception:
             return value
 
     def getAttrBool(self, key, value):
         try:
             return StrToBool(self.getAttr(key, value).lower())
-        except:
+        except Exception:
             return value
 
     def addChild(self, n):

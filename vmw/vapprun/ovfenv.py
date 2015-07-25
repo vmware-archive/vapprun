@@ -21,14 +21,14 @@ import sys
 import tempfile
 from string import Template
 
-from .commands import mkisofsCmd
+from .commands import MKISOFS_CMD
 from .utils import OsTryRemove
 
 
 class OvfEnv(object):
 
-    def __init__(self, id, env):
-        self._id = id
+    def __init__(self, identifier, env):
+        self._id = identifier
         self._env = env
 
     def create_iso(self, fname):
@@ -39,7 +39,7 @@ class OvfEnv(object):
             f.write(self.create_doc())
 
         OsTryRemove(fname)
-        cmd = [mkisofsCmd,
+        cmd = [MKISOFS_CMD,
                "-r",  # don't propagate owner/permissions
                "-V", "OVF ENV",  # align label with what vsphere does
                "-quiet",
@@ -50,8 +50,8 @@ class OvfEnv(object):
                imagedir]
         try:
             subprocess.call(cmd)
-        except:
-            print("Error: Failed to execute command '%s'" % (mkisofsCmd))
+        except Exception:
+            print("Error: Failed to execute command '%s'" % (MKISOFS_CMD))
             sys.exit(1)
 
         os.remove(path)
@@ -96,10 +96,10 @@ class OvfEnv(object):
         out.append(header.substitute(id=self._id))
         out.append(platformSection)
         createPropSection(self._env[self._id], out)
-        for id in self._env:
-            if id != self._id:
-                out.append(entityHeader.substitute(id=id))
-                createPropSection(self._env[id], out)
+        for _id in self._env:
+            if _id != self._id:
+                out.append(entityHeader.substitute(id=_id))
+                createPropSection(self._env[_id], out)
                 out.append(entityFooter)
         out.append(footer)
 

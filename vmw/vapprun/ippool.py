@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""ippool handles pool of IP addresses for vApp"""
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -46,7 +48,7 @@ def CreateIpPool(ipPoolSpec):
         pos = 3
         while pos >= 0 and ipOut[pos] > 255:
             ipOut[pos] = 0
-            ipOut[pos-1] = ip[pos-1] + 1
+            ipOut[pos - 1] = ip[pos - 1] + 1
             pos = pos - 1
         if ipOut[0] > 255:
             return ipIn
@@ -55,7 +57,8 @@ def CreateIpPool(ipPoolSpec):
     if len(ipPoolSpec) == 0:
         return IpPool(set())
 
-    patt = re.compile("^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})#(\d{1,3})$")
+    patt = re.compile(
+        r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})#(\d{1,3})$")
     m = patt.match(ipPoolSpec)
     if m is None:
         return None
@@ -64,7 +67,7 @@ def CreateIpPool(ipPoolSpec):
     count = int(m.group(5))
     ipSet = set()
     for i in range(0, count):
-        ipSet.add(".".join(map(str, ip)))
+        ipSet.add(".".join([str(item) for item in ip]))
         ip = nextIp(ip)
 
     return IpPool(ipSet)

@@ -19,6 +19,9 @@ import os
 import re
 import sys
 import time
+from abc import ABCMeta, abstractmethod
+
+from six import add_metaclass
 
 from .ippool import CreateIpPool
 from .ovfenv import OvfEnv
@@ -39,11 +42,20 @@ VAPPRUN_CONFIG_VERSION = "1"
 vappsInstance = None
 
 
-class Property:
+class abstractclassmethod(classmethod):
 
-    def __init__(self, key="", type="", value="", userConfig=True):
+    __isabstractmethod__ = True
+
+    def __init__(self, callable):
+        callable.__isabstractmethod__ = True
+        super(abstractclassmethod, self).__init__(callable)
+
+
+class Property(object):
+
+    def __init__(self, key="", typ="", value="", userConfig=True):
         self.key = key
-        self.type = type
+        self.type = typ
         self.value = value
         self.userConfig = userConfig
         if self.isMacro():
@@ -59,14 +71,15 @@ class Property:
             .setAttr("userConfigurable", BoolToStr(self.userConfig))
 
     def parseMacro(self):
-        exp = re.compile("^\${([\w\.]+)(:([\w\.]+))?}$")
+        exp = re.compile(r"^\${([\w\.]+)(:([\w\.]+))?}$")
         macro = exp.match(self.value)
         if macro is None:
             return (None, None)
         (cmd, dummy, arg) = macro.groups()
         return (cmd, arg)
 
-    def effectiveValue(self, deployParams, parentEnv=set()):
+    def effectiveValue(self, deployParams, parentEnv=None):
+        parentEnv = set() if parentEnv is None else parentEnv
         if not self.isMacro():
             val = deployParams[self.key].strip()
             if not self.userConfig or len(val) == 0:
@@ -123,20 +136,20 @@ def XmlToProperty(node):
         return None
 
     key = node.getAttr("key")
-    type = node.getAttr("type")
+    typ = node.getAttr("type")
     value = node.getAttr("value")
     userConfig = node.getAttr("userConfigurable")
-    if len(key) == 0 or len(type) == 0:
+    if len(key) == 0 or len(typ) == 0:
         return None
 
-    return Property(key, type, value, StrToBool(userConfig, True))
+    return Property(key, typ, value, StrToBool(userConfig, True))
 
 
-class Link:
+class Link(object):
 
-    def __init__(self, name):
+    def __init__(self, name, startOrder=30):
         self.name = name
-        self.startOrder = 30
+        self.startOrder = startOrder
         self.startWait = 30
         self.stopWait = 30
         self.waitForTools = True
@@ -165,16 +178,18 @@ def XmlToLink(node):
 
     l = Link(name)
     l.startOrder = node.getAttrInt("startOrder", 1)
-    l.startWait = node.getAttrInt("startWait",  30)
+    l.startWait = node.getAttrInt("startWait", 30)
     l.waitForTools = node.getAttrBool("waitForTools", True)
     l.stopWait = node.getAttrInt("stopWait", 30)
     return l
 
 
-class DeployParams:
+class DeployParams(object):
 
     def __init__(self, allKeys, ipKeys, userKeys, defValues):
         self.config = {}
+        self.fileName = None
+        self.allKeys = allKeys
         self.ipKeys = ipKeys
         self.userKeys = userKeys
         self.allocationPolicy = "fixed"
@@ -286,7 +301,8 @@ class DeployParams:
         self.writeToFile()
 
 
-class Entity:
+@add_metaclass(ABCMeta)
+class Entity(object):
 
     def __init__(self, name, cfgPath):
         self.name = name
@@ -303,9 +319,15 @@ class Entity:
         self.appUrl = ""
         self.allocationPolicy = "fixed"
         self.transport = []
+        self.ovfEnvProps = None
 
-    def isVApp(self):
-        return not self.isVM()
+    @abstractclassmethod
+    def isVM(cls):
+        return False
+
+    @classmethod
+    def isVApp(cls):
+        return not cls.isVM()
 
     def isPoweredOn(self):
         return self.state == "Powered On"
@@ -337,6 +359,10 @@ class Entity:
             self.link = link
 
         return False
+
+    @abstractmethod
+    def getRootTag(self):
+        pass
 
     def update(self):
         node = NewXmlNode(self.getRootTag())
@@ -408,14 +434,14 @@ class Entity:
         usedList.append((os.path.realpath(self.dir), True))
 
     def getPropKeys(self):
-        all = set([p.key for p in self.properties])
+        _all = set([p.key for p in self.properties])
         user = set([p.key for p in self.properties if p.isUserConfigurable()])
         ip = set([p.key for p in self.properties if p.isIp()])
         defValues = {}
 
         for e in self.children:
-            (a, u, i, df) = e.getPropKeys()
-            all = all.union(a)
+            (a, _, _, df) = e.getPropKeys()
+            _all = _all.union(a)
             user = user.union(user)
             ip = ip.union(ip)
             defValues.update(df)
@@ -424,7 +450,7 @@ class Entity:
             if len(p.value) > 0:
                 defValues[p.key] = p.value
 
-        return (all, ip, user, defValues)
+        return (_all, ip, user, defValues)
 
     def getDeployParams(self):
 
@@ -486,7 +512,8 @@ class Entity:
                 usedIps.add(val)
         return usedIps
 
-    def propagateIp(self, ip, keysIn=set()):
+    def propagateIp(self, ip, keysIn=None):
+        keysIn = set() if keysIn is None else keysIn
         deployParam = self.getDeployParams()
         keysOut = set()
 
@@ -525,10 +552,12 @@ class VmEntity(Entity):
         self.vmxFile = ""
         self.transport = ["iso", "com.vmware.guestInfo"]
 
-    def isVM(self):
+    @classmethod
+    def isVM(cls):
         return True
 
-    def getRootTag(self):
+    @classmethod
+    def getRootTag(cls):
         return "vm"
 
     def loadRootAttributes(self, node):
@@ -599,7 +628,7 @@ class VmEntity(Entity):
             return
 
         waited = 0
-        while(waited < self.link.startWait):
+        while waited < self.link.startWait:
             time.sleep(1)
             if waited % 10 == 0:
                 print(spc + "Waiting for %d secs..." %
@@ -666,10 +695,12 @@ class VAppEntity(Entity):
     def __init__(self, name, cfgPath):
         Entity.__init__(self, name, cfgPath)
 
-    def isVM(self):
+    @classmethod
+    def isVM(cls):
         return False
 
-    def getRootTag(self):
+    @classmethod
+    def getRootTag(cls):
         return "vapp"
 
     def validate(self):
@@ -755,7 +786,7 @@ class VAppEntity(Entity):
         self.stopAction(indent, force=True)
 
 
-class VAppInventory:
+class VAppInventory(object):
 
     def __init__(self, path):
         self.dir = os.path.realpath(path)
@@ -763,7 +794,7 @@ class VAppInventory:
                                                      WORKSPACE_CFG_NAME))
         try:
             self.config = ReadXmlDoc(self.cfgFile)
-        except:
+        except Exception:
             print("Error: Cannot parse", WORKSPACE_CFG_NAME,
                   "Reason:", sys.exc_info()[1])
             sys.exit(1)
@@ -782,8 +813,8 @@ class VAppInventory:
         if self.ipPool is None:
             self.ipPool = NewXmlNode("ipPool")
 
-        (range, found) = self.ipPool.lookupChildTextNode("range")
-        self.ipRange = CreateIpPool(range)
+        r, _ = self.ipPool.lookupChildTextNode("range")
+        self.ipRange = CreateIpPool(r)
         self.loadInventory()
 
     def loadInventory(self):
@@ -813,9 +844,9 @@ class VAppInventory:
                 child.update()  # Update on disk
 
     def loadEntity(self, name):
-        dir = os.path.join(self.dir, name)
-        vmPath = os.path.join(dir, VM_CFG_NAME)
-        vappPath = os.path.join(dir, VAPP_CFG_NAME)
+        dirname = os.path.join(self.dir, name)
+        vmPath = os.path.join(dirname, VM_CFG_NAME)
+        vappPath = os.path.join(dirname, VAPP_CFG_NAME)
         if os.path.exists(vmPath):
             entity = VmEntity(name, vmPath)
             entity.load()
@@ -870,7 +901,6 @@ def initializeVAppInventory():
 
 
 def getVAppsInstance():
-    global vappsInstance
     return vappsInstance
 
 
