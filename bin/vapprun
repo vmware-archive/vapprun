@@ -20,8 +20,8 @@ from __future__ import (absolute_import, division, print_function,
 # General python
 import os
 import sys
-from urllib import unquote
 
+from six.moves.urllib.parse import unquote
 from vmw.vapprun.ippool import CreateIpPool
 from vmw.vapprun.utils import (GetCmdOption, OsFileList, OsFileListRemove,
                                SetCmdOption, StrToBool)

@@ -16,7 +16,7 @@ from __future__ import division, absolute_import
 from __future__ import print_function, unicode_literals
 
 import os
-import ConfigParser
+from six.moves.configparser import ConfigParser, NoOptionError, NoSectionError
 import xml.dom.minidom
 
 options = {}
@@ -112,19 +112,19 @@ def WriteTxtFile(file, content):
         print(content, file=f)
 
 
-class MyConfigParser(ConfigParser.ConfigParser):
+class MyConfigParser(ConfigParser):
 
     def get(self, section, key, default=""):
         try:
-            return ConfigParser.ConfigParser.get(self, section, key)
-        except ConfigParser.NoOptionError:
+            return ConfigParser.get(self, section, key)
+        except NoOptionError:
             return default
-        except ConfigParser.NoSectionError:
+        except NoSectionError:
             return default
 
     def getint(self, section, key, default=0):
         try:
-            return ConfigParser.ConfigParser.getint(self, section, key)
+            return ConfigParser.getint(self, section, key)
         except:
             return default
 

@@ -105,7 +105,7 @@ class VmrunCommand:
                              stdin=subprocess.PIPE,
                              stderr=NUL_STDERR,
                              **opts)
-        out = p.stdout.read().strip().lower()
+        out = p.stdout.read().decode('utf-8').strip().lower()
         p.stdout.close()
         return out.strip()
 
