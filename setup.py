@@ -12,5 +12,5 @@ setup(
     package_data={'vmw.vapprun': ['templates/*']},
     scripts=['bin/vapprun'],
     setup_requires=['setuptools'],
-    install_requires=['setuptools', 'six'],
+    install_requires=['setuptools', 'six>=1.10.0'],
 )
