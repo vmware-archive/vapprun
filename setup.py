@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="vapprun",
-    version="1.0.1",
+    version="1.0.2",
     author="Yann Hodique",
     author_email="hodiquey@vmware.com",
     namespace_packages=['vmw'],
